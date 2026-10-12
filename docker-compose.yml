@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  db:
+    image: pgvector/pgvector:pg15
+    container_name: rakshaai_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: raksha
+      POSTGRES_PASSWORD: raksha
+      POSTGRES_DB: rakshaai
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U raksha -d rakshaai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  scraper:
+    build: .
+    container_name: rakshaai_scraper
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://raksha:raksha@db:5432/rakshaai
+    volumes:
+      - ./logs:/app/logs
+    command: python -m scraper.scheduler
+
+volumes:
+  pgdata:

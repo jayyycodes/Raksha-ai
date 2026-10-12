@@ -1,0 +1,26 @@
+[project]
+name = "raksha-ai"
+version = "0.1.0"
+description = "AI-Powered Open Source Intelligence Platform for Indian Defence"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Jay"},
+    {name = "Ary"},
+    {name = "Jaish"},
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["scraper", "common", "engine", "report", "api"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 50

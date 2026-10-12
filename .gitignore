@@ -1,0 +1,58 @@
+# ── Python ────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+
+# ── Virtual Environments ─────────────────────────
+venv/
+env/
+.venv/
+
+# ── Environment Variables ────────────────────────
+.env
+
+# ── Logs ─────────────────────────────────────────
+logs/*.log
+*.log
+!logs/.gitkeep
+
+# ── Testing ──────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── IDEs ─────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS ───────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Database ─────────────────────────────────────
+*.dump
+*.sql.bak
+
+# ── Node.js / Frontend (Stage 4) ────────────────
+node_modules/
+.next/
+frontend/.next/
+frontend/node_modules/
+frontend/out/
+frontend/.env.local
+
+# ── ML Models (downloaded at runtime) ────────────
+models/
+*.bin
+*.pt
+*.onnx
+
+# ── Misc ─────────────────────────────────────────
+.agents/
