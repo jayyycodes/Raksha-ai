@@ -1,0 +1,15 @@
+{"pair_id": 1, "entity_a": "IAF", "entity_b": "Indian Air Force", "label": "MATCH", "type": "ORGANISATION", "reason": "Standard acronym for the same national air force"}
+{"pair_id": 2, "entity_a": "PLA", "entity_b": "People's Liberation Army", "label": "MATCH", "type": "ORGANISATION", "reason": "Official acronym and full English name of China's armed forces"}
+{"pair_id": 3, "entity_a": "Western Air Command", "entity_b": "Eastern Air Command", "label": "DISTINCT", "type": "ORGANISATION", "reason": "Distinct operational commands within the IAF with different headquarters and areas of responsibility"}
+{"pair_id": 4, "entity_a": "DRDO", "entity_b": "Defence Research and Development Organisation", "label": "MATCH", "type": "ORGANISATION", "reason": "Standard acronym expansion"}
+{"pair_id": 5, "entity_a": "Line of Actual Control", "entity_b": "LAC", "label": "MATCH", "type": "LOCATION", "reason": "Acronym for the border demarcation between India and China"}
+{"pair_id": 6, "entity_a": "Line of Control", "entity_b": "Line of Actual Control", "label": "DISTINCT", "type": "LOCATION", "reason": "LoC demarcates India-Pakistan in J&K, whereas LAC demarcates India-China"}
+{"pair_id": 7, "entity_a": "Jaish-e-Mohammed", "entity_b": "JeM", "label": "MATCH", "type": "ORGANISATION", "reason": "Common acronym alias for UN-proscribed terror outfit"}
+{"pair_id": 8, "entity_a": "Jaish-e-Mohammad", "entity_b": "Jaish-e-Mohammed", "label": "MATCH", "type": "ORGANISATION", "reason": "Transliteration spelling variance of the same group name"}
+{"pair_id": 9, "entity_a": "Depsang Plains", "entity_b": "Depsang Standoff", "label": "REVIEW_NEEDED", "type": "LOCATION_EVENT", "reason": "One is a geographical location, the other is an event at that location"}
+{"pair_id": 10, "entity_a": "Rafale", "entity_b": "Dassault Rafale", "label": "MATCH", "type": "EQUIPMENT", "reason": "Manufacturer prefix variant of the same fighter jet aircraft"}
+{"pair_id": 11, "entity_a": "Tejas Mk1A", "entity_b": "LCA Tejas", "label": "REVIEW_NEEDED", "type": "EQUIPMENT", "reason": "Specific advanced variant vs generic Light Combat Aircraft family"}
+{"pair_id": 12, "entity_a": "General Anil Chauhan", "entity_b": "Chief of Defence Staff", "label": "REVIEW_NEEDED", "type": "PERSON_TITLE", "reason": "Incumbent person vs military appointment title; merges must link rather than overwrite identity"}
+{"pair_id": 13, "entity_a": "Northern Command", "entity_b": "Southern Command", "label": "DISTINCT", "type": "ORGANISATION", "reason": "Completely separate geographic army commands"}
+{"pair_id": 14, "entity_a": "Pangong Tso", "entity_b": "Pangong Lake", "label": "MATCH", "type": "LOCATION", "reason": "Tibetan/Ladakhi suffix 'Tso' means lake; referring to the exact same water body"}
+{"pair_id": 15, "entity_a": "Galwan Valley", "entity_b": "Shyok River", "label": "DISTINCT", "type": "LOCATION", "reason": "Galwan is a tributary valley; separate geographic locations despite proximity"}
