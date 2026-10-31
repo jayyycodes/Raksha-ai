@@ -1,4 +1,4 @@
-{"pair_id": 1, "entity_a": "IAF", "entity_b": "Indian Air Force", "label": "MATCH", "type": "ORGANISATION", "reason": "Standard acronym for the same national air force"}
+﻿{"pair_id": 1, "entity_a": "IAF", "entity_b": "Indian Air Force", "label": "MATCH", "type": "ORGANISATION", "reason": "Standard acronym for the same national air force"}
 {"pair_id": 2, "entity_a": "PLA", "entity_b": "People's Liberation Army", "label": "MATCH", "type": "ORGANISATION", "reason": "Official acronym and full English name of China's armed forces"}
 {"pair_id": 3, "entity_a": "Western Air Command", "entity_b": "Eastern Air Command", "label": "DISTINCT", "type": "ORGANISATION", "reason": "Distinct operational commands within the IAF with different headquarters and areas of responsibility"}
 {"pair_id": 4, "entity_a": "DRDO", "entity_b": "Defence Research and Development Organisation", "label": "MATCH", "type": "ORGANISATION", "reason": "Standard acronym expansion"}

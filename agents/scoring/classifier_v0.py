@@ -1,5 +1,5 @@
-"""
-Threat Classifier v0 — Rule-based article threat assessment.
+﻿"""
+Threat Classifier v0 ΓÇö Rule-based article threat assessment.
 Owner: Jaish
 Stage: 1 (MVP)
 

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Provenance schema for Raksha AI.
 Every derived record, analysis result, and report assertion must carry provenance.
 """

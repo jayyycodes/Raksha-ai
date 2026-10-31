@@ -80,6 +80,9 @@ def run_scrape_cycle():
     all_articles = rss_articles + api_articles
 
     inserted, skipped = _insert_articles(all_articles)
+    # Run the NLP pipeline on newly inserted articles
+    from pipeline.runner import process_new_articles
+    process_new_articles()
 
     elapsed = (datetime.utcnow() - start).total_seconds()
     logger.info(

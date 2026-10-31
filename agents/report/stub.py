@@ -1,4 +1,4 @@
-"""
+﻿"""
 Report Agent Stub (Grounded Daily SitRep).
 Owner: Jaish
 Stage: 1 (Contract Stub)
@@ -52,7 +52,7 @@ class ReportAgentStub(BaseAgent[SitRepIn, SitRepOut]):
 
         return SitRepOut(
             report_date=input_data.report_date,
-            title=f"Raksha AI Daily SitRep — {input_data.report_date.isoformat()}",
+            title=f"Raksha AI Daily SitRep ΓÇö {input_data.report_date.isoformat()}",
             executive_summary=(
                 "Summary of regional defence developments over the last 24 hours. "
                 "Air patrol activity reported along western border sectors; bilateral boundary protocol talks convened."

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Profile Summary Agent Stub.
 Owner: Jaish
 Stage: 1 (Contract Stub)

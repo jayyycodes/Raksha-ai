@@ -1,4 +1,4 @@
-"""
+﻿"""
 Translation Agent Stub.
 Owner: Ary (Contract Stub by Jaish)
 Stage: 1 (Contract Stub)

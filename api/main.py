@@ -1,7 +1,7 @@
 """
-FastAPI Application — main entry point.
+FastAPI Application — Raksha AI API
 Owner: Jay
-Stage: 3 (basic routes in MVP)
+Stage: 1 MVP
 
 Run: uvicorn api.main:app --reload --port 8000
 """
@@ -14,13 +14,13 @@ logger = get_logger(__name__)
 
 app = FastAPI(
     title="Raksha AI",
-    description="OSINT Intelligence Platform API for Indian Defence",
-    version="0.1.0",
+    description="Palantir-inspired OSINT Intelligence Platform for India's Defence Context",
+    version="0.1.0-mvp",
     docs_url="/docs",
     redoc_url="/redoc",
 )
 
-# CORS — allow frontend dev server
+# CORS — allow Next.js dev server
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
@@ -30,15 +30,14 @@ app.add_middleware(
 )
 
 
+# ── Health ──────────────────────────────────────────────────────
 @app.get("/", tags=["Health"])
 def root():
-    """Health check endpoint."""
-    return {"status": "ok", "service": "raksha-ai"}
+    return {"status": "ok", "service": "raksha-ai", "stage": "mvp"}
 
 
 @app.get("/api/health", tags=["Health"])
 def health_check():
-    """Detailed health check with DB status."""
     from common.db import check_connection
     db_ok = check_connection()
     return {
@@ -47,8 +46,11 @@ def health_check():
     }
 
 
-# TODO (Jay): Import and include route modules as they're built
-# from api.routes import articles, sources, stats, map, threats, events, sitrep, alerts
-# app.include_router(articles.router, prefix="/api")
-# app.include_router(sources.router, prefix="/api")
-# app.include_router(stats.router, prefix="/api")
+# ── MVP Routers ─────────────────────────────────────────────────
+from api.routes.articles import router as articles_router
+from api.routes.sources import router as sources_router
+from api.routes.stats import router as stats_router
+
+app.include_router(articles_router, prefix="/api")
+app.include_router(sources_router, prefix="/api")
+app.include_router(stats_router, prefix="/api")

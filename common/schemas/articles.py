@@ -1,4 +1,4 @@
-"""
+﻿"""
 Article input/output contracts for pipeline and agent execution.
 """
 from datetime import datetime, timezone

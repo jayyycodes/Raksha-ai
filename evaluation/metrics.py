@@ -1,4 +1,4 @@
-"""
+﻿"""
 Metrics computation module for Raksha AI Evaluation Harness.
 Provides dependency-free calculations for Accuracy, Precision, Recall, F1, and Grounding Rate.
 """

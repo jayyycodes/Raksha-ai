@@ -1,4 +1,4 @@
-"""
+﻿"""
 Event and threading schemas for Raksha AI ontology.
 """
 from datetime import datetime, timezone

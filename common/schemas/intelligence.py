@@ -1,4 +1,4 @@
-"""
+﻿"""
 Intelligence and Generation Schemas (Floor 3 - Jaish).
 Contracts for Threat Scoring, Anomaly Detection, SitRep, Profile Summaries, and Corroboration.
 """
