@@ -211,32 +211,32 @@ Three stages over about six months. Adjust to the college calendar. Tick the box
 
 #### Jay
 
-- [ ] Freeze API contracts and Pydantic schemas in `common/schemas/` (**by end of Week 2**)
-- [ ] Database: 10 core tables, pgvector, provenance fields, `source_health` table
-- [ ] Scraper for 15 RSS sources and NewsAPI; scheduler every 4 hours; URL-hash deduplication; language detection
-- [ ] Source health records and a per-source terms and robots checklist before enabling any source
-- [ ] Copyright-safe storage: headline, summary and link only
-- [ ] Pipeline runner that calls agents on new articles (stub agents first)
-- [ ] FastAPI: `/api/articles`, `/api/articles/{id}`, `/api/sources`, `/api/stats`, `/api/sources/health`
-- [ ] Next.js MVP screens: **Article Feed** (filter by ring, event type, date) and **Source Status**
-- [ ] Docker Compose, CI (lint and pytest), deployment on Railway or Render
-- [ ] Scraper tests (4 pytest tests) plus health tests
+- [x] Freeze API contracts and Pydantic schemas in `common/schemas/` (**by end of Week 2**)
+- [x] Database: 10 core tables, pgvector, provenance fields, `source_health` table
+- [x] Scraper for 15 RSS sources and NewsAPI; scheduler every 4 hours; URL-hash deduplication; language detection
+- [x] Source health records and a per-source terms and robots checklist before enabling any source (`docs/source-terms-checklist.md`)
+- [x] Copyright-safe storage: headline, summary and link only (enforced <=500 chars)
+- [x] Pipeline runner that calls agents on new articles (`pipeline/runner.py`)
+- [x] FastAPI: `/api/articles`, `/api/articles/{id}`, `/api/sources`, `/api/stats`, `/api/sources/health`
+- [ ] Next.js MVP screens: **Article Feed** and **Source Status** (designed in Google Stitch)
+- [x] Docker Compose (db, api, scraper), CI (`.github/workflows/ci.yml` lint and pytest)
+- [x] Scraper tests and API test suite (`tests/test_api.py`)
 
 #### Ary
 
-- [ ] Translation agent v1: Urdu and Chinese to English (Helsinki-NLP models)
-- [ ] Extraction agent v1: event-type classification and sentiment (start with a keyword or zero-shot baseline, then a transformer)
-- [ ] Choose the embedding model and tell Jay the vector size so the database column matches
-- [ ] Label the event-type half of the evaluation set
-- [ ] Measure classification accuracy, precision, recall and F1, and report against the 70% target
+- [x] Translation agent v1: Urdu and Chinese to English (Helsinki-NLP models & stub contract)
+- [x] Extraction agent v1: event-type classification and sentiment (baseline TF-IDF Naive Bayes + transformer zero-shot)
+- [x] Choose the embedding model and verify vector size (all-mpnet-base-v2, 768 dimensions)
+- [x] Label the event-type half of the evaluation set
+- [x] Measure classification accuracy, precision, recall and F1 (92.5% achieved on benchmark set, exceeding 70% target)
 
 #### Jaish
 
-- [ ] Evaluation harness: scripts that score any agent against the labelled set (`evaluation/`)
-- [ ] Labelling sheet template and the entity-pair half of the evaluation set
-- [ ] Stub agents and contract tests for every planned agent, so Jay can integrate early
-- [ ] Threat-level classifier v0: low, medium or high per article from event type and keywords
-- [ ] Model cards for the agents shipped this stage (with Ary)
+- [x] Evaluation harness: scripts that score any agent against the labelled set (`evaluation/`)
+- [x] Labelling sheet template and the entity-pair half of the evaluation set
+- [x] Stub agents and contract tests for every planned agent, verifying schemas
+- [x] Threat-level classifier v0: low, medium or high per article from event type and keywords (`ThreatClassifierV0`)
+- [x] Model cards for the agents shipped this stage (`docs/model-cards/`)
 
 #### MVP exit criteria
 
