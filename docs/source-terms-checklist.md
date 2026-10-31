@@ -37,3 +37,4 @@ This document details the compliance, terms of service, and scraping policies fo
 - **Endpoint**: Developer tier `https://newsapi.org/v2/everything`.
 - **Query Filter**: Restrict to defense keywords and India security topics.
 - **Data Policy**: NewsAPI developer terms allow headline and metadata display with direct canonical referral links.
+

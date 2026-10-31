@@ -128,3 +128,4 @@ def test_stats_mocked_db():
     assert data["per_ring"] == {"1": 80}
 
     app.dependency_overrides.clear()
+
