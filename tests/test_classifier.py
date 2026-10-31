@@ -226,9 +226,15 @@ class TestClassifierFailureModes(unittest.TestCase):
                 classify_event("Sample headline")
             self.assertIn("non-canonical category", str(ctx.exception))
 
+    def tearDown(self):
+        clear_classifier_cache()
+
 
 class TestClassifierEvaluationIntegration(unittest.TestCase):
     """Test dataset loading and evaluation runner integrity."""
+
+    def setUp(self):
+        clear_classifier_cache()
 
     def test_evaluation_dataset_structure(self):
         """Evaluation dataset contains 40 curated examples covering all 10 classes with provenance."""

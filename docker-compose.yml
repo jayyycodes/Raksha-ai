@@ -14,11 +14,33 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ./database/migrations/002_source_health.sql:/docker-entrypoint-initdb.d/02_source_health.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U raksha -d rakshaai"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  api:
+    build: .
+    container_name: rakshaai_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://raksha:raksha@db:5432/rakshaai
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./logs:/app/logs
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/api/health\")'"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
   scraper:
     build: .

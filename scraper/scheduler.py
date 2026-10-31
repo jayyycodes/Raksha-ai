@@ -23,7 +23,9 @@ logger = get_logger(__name__)
 
 
 def _insert_articles(articles: list[dict]) -> tuple[int, int]:
-    """Insert new articles, skip duplicates via url_hash."""
+    """Insert new articles, skip duplicates via url_hash.
+    Enforces copyright-safe storage: headline, link, and short summary snippet only (<=500 chars).
+    """
     inserted = skipped = 0
 
     with get_db() as db:
@@ -41,6 +43,10 @@ def _insert_articles(articles: list[dict]) -> tuple[int, int]:
                 {"name": article["source_name"]},
             ).fetchone()
 
+            # Copyright-safe snippet: headline + summary only, maximum 500 characters
+            raw_content = article.get("content") or ""
+            safe_summary = raw_content[:500] if raw_content else None
+
             db.execute(
                 text("""
                     INSERT INTO articles
@@ -52,7 +58,7 @@ def _insert_articles(articles: list[dict]) -> tuple[int, int]:
                 {
                     "source_id":    row[0] if row else None,
                     "title":        article["title"],
-                    "content":      article["content"],
+                    "content":      safe_summary,
                     "url":          article["url"],
                     "url_hash":     article["url_hash"],
                     "language":     article["language"],
