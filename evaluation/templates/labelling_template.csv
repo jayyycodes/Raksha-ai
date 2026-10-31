@@ -1,0 +1,6 @@
+sample_id,text_or_pair,task_type,annotator,gold_label,secondary_label,confidence,notes
+1,"Heavy artillery firing reported across Line of Control in Poonch sector",threat_level,Jaish,high,,1.0,"Active cross-border casualties"
+2,"IAF | Indian Air Force",entity_resolution,Jaish,MATCH,ORGANISATION,1.0,"Standard acronym"
+3,"Western Air Command | Eastern Air Command",entity_resolution,Jaish,DISTINCT,ORGANISATION,1.0,"Distinct military operational formations"
+4,"Trade delegations hold annual economic summit in New Delhi",event_type,Ary,diplomatic,,1.0,"No military engagement"
+5,"Sample headline for annotation...",event_type,Team,general,,0.8,"Needs team consensus"
