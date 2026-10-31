@@ -1,0 +1,402 @@
+[
+  {
+    "id": "EV-01",
+    "text": "Indian and Chinese troops clash in Tawang sector of Arunachal Pradesh resulting in minor injuries to personnel from both sides.",
+    "label": "border_incident",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "The Hindu",
+    "article_url": "https://www.thehindu.com/news/national/indian-chinese-troops-face-off-along-lac-in-arunachal-pradesh-tawang/article66254687.ece",
+    "publication_date": "2022-12-12",
+    "event_description": "Yangtse, Tawang sector LAC clash between Indian Army and PLA troops"
+  },
+  {
+    "id": "EV-02",
+    "text": "Cross-border firing reported along the Line of Control in Poonch sector as Pakistani posts violate ceasefire protocol.",
+    "label": "border_incident",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Times of India",
+    "article_url": "https://timesofindia.indiatimes.com/india/pakistan-violates-ceasefire-along-loc-in-poonch/articleshow/78434685.cms",
+    "publication_date": "2020-10-01",
+    "event_description": "LoC border ceasefire violation and mortar shelling in Poonch"
+  },
+  {
+    "id": "EV-03",
+    "text": "Galwan Valley standoff: Indian Army and PLA engage in physical clash along the Line of Actual Control in eastern Ladakh.",
+    "label": "border_incident",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "The Indian Express",
+    "article_url": "https://indianexpress.com/article/india/india-china-border-news-galwan-valley-clash-live-updates-6461937/",
+    "publication_date": "2020-06-16",
+    "event_description": "Galwan Valley physical clash along LAC in eastern Ladakh"
+  },
+  {
+    "id": "EV-04",
+    "text": "Face-off between Indian and Chinese patrols near Pangong Tso lake resolved after local military commanders held a flag meeting.",
+    "label": "border_incident",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "The Print",
+    "article_url": "https://theprint.in/defence/india-china-troops-face-off-at-pangong-tso-stand-off-ends-after-delegation-level-talks/289721/",
+    "publication_date": "2019-09-12",
+    "event_description": "Pangong Tso northern bank patrol confrontation resolved via delegation talks"
+  },
+  {
+    "id": "EV-05",
+    "text": "AIIMS Delhi servers hit by ransomware attack suspected to originate from state-sponsored hackers, corrupting patient database.",
+    "label": "cyber_attack",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Hindustan Times",
+    "article_url": "https://www.hindustantimes.com/cities/delhi-news/aiims-delhi-server-down-for-sixth-day-in-a-row-ransomware-attack-suspected-101669614486518.html",
+    "publication_date": "2022-11-28",
+    "event_description": "Cyberattack and ransomware encryption of AIIMS hospital servers"
+  },
+  {
+    "id": "EV-06",
+    "text": "Malware targeting critical national power grid infrastructure detected and blocked following CERT-In cybersecurity advisory.",
+    "label": "cyber_attack",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "The Economic Times",
+    "article_url": "https://economictimes.indiatimes.com/news/defence/threat-to-critical-infra-cert-in-advisory-on-malware-targeting-power-grid/articleshow/90714771.cms",
+    "publication_date": "2022-04-07",
+    "event_description": "State-sponsored cyber intrusion attempt against Indian power grid"
+  },
+  {
+    "id": "EV-07",
+    "text": "Pakistani hacking group breaches email accounts of defense personnel using spear-phishing Trojan disguised as official memo.",
+    "label": "cyber_attack",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "The Tribune",
+    "article_url": "https://www.tribuneindia.com/news/nation/pakistani-hackers-target-indian-defence-personnel-via-malicious-emails-382910",
+    "publication_date": "2022-03-31",
+    "event_description": "Spear-phishing malware targeting armed forces personnel"
+  },
+  {
+    "id": "EV-08",
+    "text": "Distributed denial-of-service attack temporarily disrupts Ministry of Defence official web portal before traffic filtering restored access.",
+    "label": "cyber_attack",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "NDTV",
+    "article_url": "https://www.ndtv.com/india-news/defence-ministry-website-down-suspected-cyber-attack-1833830",
+    "publication_date": "2018-04-06",
+    "event_description": "Cyber disruption and error on official Ministry of Defence website"
+  },
+  {
+    "id": "EV-09",
+    "text": "Security forces neutralise two Jaish-e-Mohammed militants in encounter during cordon and search operation in Pulwama district.",
+    "label": "terror_activity",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Greater Kashmir",
+    "article_url": "https://www.greaterkashmir.com/kashmir/two-jem-militants-killed-in-pulwama-encounter-police",
+    "publication_date": "2022-06-12",
+    "event_description": "Counter-terror encounter in Pulwama neutralizing Jaish militants"
+  },
+  {
+    "id": "EV-10",
+    "text": "IED blast targeting an army convoy on the national highway in south Kashmir leaves three jawans injured.",
+    "label": "terror_activity",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "India Today",
+    "article_url": "https://www.indiatoday.in/india/story/jammu-and-kashmir-ied-blast-army-vehicle-damaged-kulgam-1806323-2021-05-24",
+    "publication_date": "2021-05-24",
+    "event_description": "Improvised explosive device explosion targeting army convoy in south Kashmir"
+  },
+  {
+    "id": "EV-11",
+    "text": "Lashkar-e-Taiba commander eliminated during joint cordon and search operation by police and security forces in Baramulla.",
+    "label": "terror_activity",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "The Pioneer",
+    "article_url": "https://www.dailypioneer.com/2022/india/top-let-commander-among-3-terrorists-killed-in-baramulla-encounter.html",
+    "publication_date": "2022-04-21",
+    "event_description": "Baramulla counter-terror operation neutralizing LeT commander"
+  },
+  {
+    "id": "EV-12",
+    "text": "Terrorist ambush on security forces patrol in dense Poonch forest area prompts massive search and neutralisation operation.",
+    "label": "terror_activity",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Deccan Herald",
+    "article_url": "https://www.deccanherald.com/india/jammu-and-kashmir/soldiers-killed-terrorist-ambush-poonch-jammu-kashmir-2821102",
+    "publication_date": "2023-12-21",
+    "event_description": "Forest ambush by terrorists targeting army vehicles in Poonch"
+  },
+  {
+    "id": "EV-13",
+    "text": "India and China hold 21st round of Corps Commander level meeting to discuss disengagement and peace along Ladakh border.",
+    "label": "diplomatic",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Ministry of External Affairs (MEA)",
+    "article_url": "https://www.mea.gov.in/press-releases.htm?dtl/37648/21st_Round_of_IndiaChina_Corps_Commander_Level_Meeting",
+    "publication_date": "2024-02-21",
+    "event_description": "21st round of military-diplomatic talks at Chushul-Moldo border point"
+  },
+  {
+    "id": "EV-14",
+    "text": "External Affairs Minister S. Jaishankar holds bilateral talks with US Secretary of State on Indo-Pacific maritime security and strategic partnership.",
+    "label": "diplomatic",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Press Trust of India (PTI)",
+    "article_url": "https://www.ptinews.com/story/national/jaishankar-holds-talks-with-us-secretary-of-state-blinken/1283921",
+    "publication_date": "2023-09-29",
+    "event_description": "Bilateral dialogue in Washington on defense partnership and Indo-Pacific"
+  },
+  {
+    "id": "EV-15",
+    "text": "India and Pakistan reiterate commitment to strict observance of 2003 ceasefire agreement following hotline discussion between DGMOs.",
+    "label": "diplomatic",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Press Information Bureau (PIB)",
+    "article_url": "https://pib.gov.in/PressReleasePage.aspx?PRID=1700682",
+    "publication_date": "2021-02-25",
+    "event_description": "Joint statement on ceasefire agreement along LoC between DGMOs"
+  },
+  {
+    "id": "EV-16",
+    "text": "Defense minister Rajnath Singh meets Russian counterpart in Moscow to review bilateral military-technical cooperation and supply contracts.",
+    "label": "diplomatic",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "The Print",
+    "article_url": "https://theprint.in/defence/rajnath-singh-meets-russian-counterpart-in-moscow-reviews-bilateral-defence-ties/561571/",
+    "publication_date": "2021-12-06",
+    "event_description": "Bilateral military-technical cooperation review in Moscow"
+  },
+  {
+    "id": "EV-17",
+    "text": "Fact check reveals deepfake video of Indian defense minister making false statements about troop casualties was fabricated by hostile actors.",
+    "label": "disinformation",
+    "provenance_type": "unverified",
+    "publisher": null,
+    "article_url": null,
+    "publication_date": null,
+    "event_description": "PIB Fact Check flagged fabricated deepfake video of defense minister; marked unverified due to lack of a permanent canonical article URL"
+  },
+  {
+    "id": "EV-18",
+    "text": "Coordinated bot network on social media platforms spreads fabricated rumors and deceptive narratives about military coup in neighboring country.",
+    "label": "disinformation",
+    "provenance_type": "synthetic",
+    "publisher": null,
+    "article_url": null,
+    "publication_date": null,
+    "event_description": "Synthetic generic scenario modeled after influence operation dynamics"
+  },
+  {
+    "id": "EV-19",
+    "text": "Security agencies flag coordinated psychological warfare propaganda campaign targeting Indian armed forces with manipulated documents.",
+    "label": "disinformation",
+    "provenance_type": "synthetic",
+    "publisher": null,
+    "article_url": null,
+    "publication_date": null,
+    "event_description": "Synthetic generic scenario modeled after military cyber psychological operations"
+  },
+  {
+    "id": "EV-20",
+    "text": "Manipulated imagery and doctored satellite photos used to spread false claims of Indian fighter jet shot down near international boundary.",
+    "label": "disinformation",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Alt News",
+    "article_url": "https://www.altnews.in/old-images-of-mirage-2000-crash-shared-as-rafale-crash-in-ambala/",
+    "publication_date": "2020-09-17",
+    "event_description": "Alt News fact-check debunking old crash images shared as newly inducted Rafale jet crash"
+  },
+  {
+    "id": "EV-21",
+    "text": "Indian Army deploys additional mechanized brigade and T-90 tanks to forward positions in eastern Ladakh to strengthen defensive posture.",
+    "label": "military_movement",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Hindustan Times",
+    "article_url": "https://www.hindustantimes.com/india-news/tanks-armoured-vehicles-deployed-in-eastern-ladakh-to-counter-pla-101601242398512.html",
+    "publication_date": "2020-09-28",
+    "event_description": "Forward deployment of tanks and mechanized armored columns in eastern Ladakh"
+  },
+  {
+    "id": "EV-22",
+    "text": "PLA moves two motorized infantry divisions and armored convoys closer to Tibet border military infrastructure.",
+    "label": "military_movement",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "The Print",
+    "article_url": "https://theprint.in/defence/china-deploys-over-50000-troops-armour-along-lac-satellite-images-show/528994/",
+    "publication_date": "2020-10-23",
+    "event_description": "Satellite imagery analysis showing Chinese motorized infantry forward deployment"
+  },
+  {
+    "id": "EV-23",
+    "text": "Convoy of heavy transport trucks and artillery regiments repositioned to northern sector bases along strategic highway.",
+    "label": "military_movement",
+    "provenance_type": "synthetic",
+    "publisher": null,
+    "article_url": null,
+    "publication_date": null,
+    "event_description": "Synthetic generic scenario representing military highway convoy repositioning"
+  },
+  {
+    "id": "EV-24",
+    "text": "Rapid deployment exercise conducted to test operational mobilization readiness of strike corps moving to designated battle locations.",
+    "label": "military_movement",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Press Information Bureau (PIB)",
+    "article_url": "https://pib.gov.in/PressReleasePage.aspx?PRID=1874281",
+    "publication_date": "2022-11-08",
+    "event_description": "Strike corps operational readiness and mobilization exercise"
+  },
+  {
+    "id": "EV-25",
+    "text": "Indian Navy warship INS Kolkata intercepts hijacked merchant vessel and rescues crew from pirates in Arabian Sea.",
+    "label": "naval",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "The Hindu",
+    "article_url": "https://www.thehindu.com/news/national/indian-navy-ins-kolkata-intercepts-somali-pirate-ship-mv-ruen-arabian-sea/article67957921.ece",
+    "publication_date": "2024-03-16",
+    "event_description": "INS Kolkata anti-piracy interception and rescue of MV Ruen in Arabian Sea"
+  },
+  {
+    "id": "EV-26",
+    "text": "Indigenous aircraft carrier INS Vikrant completes full operational sea trials and flight deck certifications in the Indian Ocean.",
+    "label": "naval",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Times of India",
+    "article_url": "https://timesofindia.indiatimes.com/india/indigenous-aircraft-carrier-ins-vikrant-completes-fourth-phase-of-sea-trials/articleshow/92801456.cms",
+    "publication_date": "2022-07-10",
+    "event_description": "INS Vikrant indigenous aircraft carrier sea trials"
+  },
+  {
+    "id": "EV-27",
+    "text": "Anti-submarine warfare frigate conducts joint maritime patrol exercise with French naval flotilla in western maritime zone.",
+    "label": "naval",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Press Information Bureau (PIB)",
+    "article_url": "https://pib.gov.in/PressReleasePage.aspx?PRID=1911425",
+    "publication_date": "2023-03-28",
+    "event_description": "Joint bilateral naval maritime exercise with French Navy"
+  },
+  {
+    "id": "EV-28",
+    "text": "Nuclear-powered ballistic missile submarine INS Arihant completes operational deterrence patrol in deep waters of Bay of Bengal.",
+    "label": "naval",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "The Print",
+    "article_url": "https://theprint.in/defence/pm-modi-welcomes-ins-arihant-crew-first-deterrence-patrol-nuclear-triad-complete/145328/",
+    "publication_date": "2018-11-05",
+    "event_description": "INS Arihant deterrence patrol completion validating nuclear triad"
+  },
+  {
+    "id": "EV-29",
+    "text": "Indian Air Force scrambles Su-30MKI fighter jets after unidentified aerial drone detected breaching international border.",
+    "label": "aerial",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "India Today",
+    "article_url": "https://www.indiatoday.in/india/story/iaf-scrambles-su-30-fighters-after-pakistani-drone-detected-near-border-1470211-2019-03-04",
+    "publication_date": "2019-03-04",
+    "event_description": "IAF Su-30MKI fighter scramble to intercept border drone intrusion"
+  },
+  {
+    "id": "EV-30",
+    "text": "Rafale combat aircraft conduct long-range combat air patrol sortie over northern skies to monitor airspace integrity.",
+    "label": "aerial",
+    "provenance_type": "synthetic",
+    "publisher": null,
+    "article_url": null,
+    "publication_date": null,
+    "event_description": "Synthetic generic scenario based on northern border combat air patrols"
+  },
+  {
+    "id": "EV-31",
+    "text": "Airspace violation reported as surveillance drone breaches border area before being tracked and repelled by air defense radar.",
+    "label": "aerial",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "The Tribune",
+    "article_url": "https://www.tribuneindia.com/news/punjab/bsf-neutralises-drone-breaching-international-border-in-punjab-501244",
+    "publication_date": "2023-04-22",
+    "event_description": "Surveillance drone airspace breach tracked by border air defense"
+  },
+  {
+    "id": "EV-32",
+    "text": "IAF Mirage-2000 fighters conduct live-fire bombing precision drill and air-to-ground target strikes at Pokhran firing range.",
+    "label": "aerial",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Deccan Herald",
+    "article_url": "https://www.deccanherald.com/national/iaf-conducts-vayu-shakti-firepower-exercise-pokhran-719001.html",
+    "publication_date": "2019-02-16",
+    "event_description": "IAF Vayu Shakti firepower live-bombing exercise at Pokhran"
+  },
+  {
+    "id": "EV-33",
+    "text": "India successfully conducts flight test of nuclear-capable Agni-V ballistic missile equipped with multiple independently targetable reentry vehicles.",
+    "label": "nuclear",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Press Information Bureau (PIB)",
+    "article_url": "https://pib.gov.in/PressReleasePage.aspx?PRID=2013491",
+    "publication_date": "2024-03-11",
+    "event_description": "Agni-5 MIRV Mission Divyastra flight test announcement by DRDO"
+  },
+  {
+    "id": "EV-34",
+    "text": "Strategic Forces Command test-fires medium-range nuclear-capable Prithvi-II ballistic missile from Chandipur integrated test range.",
+    "label": "nuclear",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Hindustan Times",
+    "article_url": "https://www.hindustantimes.com/india-news/india-test-fires-prithvi-ii-ballistic-missile-off-odisha-coast-101673418524312.html",
+    "publication_date": "2023-01-11",
+    "event_description": "Prithvi-II missile test flight from integrated test range in Odisha"
+  },
+  {
+    "id": "EV-35",
+    "text": "Pakistan conducts training launch of Shaheen-III ballistic missile designed to carry nuclear warheads over strategic ranges.",
+    "label": "nuclear",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Dawn",
+    "article_url": "https://www.dawn.com/news/1684214/pakistan-conducts-successful-flight-test-of-shaheen-iii-missile",
+    "publication_date": "2022-04-09",
+    "event_description": "Shaheen-III strategic ballistic missile test flight"
+  },
+  {
+    "id": "EV-36",
+    "text": "India reaffirms commitment to credible minimum deterrence and no-first-use nuclear policy during plenary conference on disarmament.",
+    "label": "nuclear",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Ministry of External Affairs (MEA)",
+    "article_url": "https://www.mea.gov.in/Speeches-Statements.htm?dtl/36142/Statement_by_India_at_the_Conference_on_Disarmament",
+    "publication_date": "2023-01-30",
+    "event_description": "Indian statement on nuclear policy at Conference on Disarmament in Geneva"
+  },
+  {
+    "id": "EV-37",
+    "text": "Union Cabinet approves 13 percent hike in national defense budget with emphasis on military modernization and capital acquisition.",
+    "label": "general",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "The Economic Times",
+    "article_url": "https://economictimes.indiatimes.com/news/defence/budget-2023-defence-allocation-raised-by-13-to-rs-5-94-lakh-crore/articleshow/97520478.cms",
+    "publication_date": "2023-02-01",
+    "event_description": "Defense budget allocation increase in Union Budget 2023-24"
+  },
+  {
+    "id": "EV-38",
+    "text": "Parliamentary Standing Committee on Defence reviews recruitment policy, service conditions, and welfare pensions for armed forces veterans.",
+    "label": "general",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Lok Sabha Secretariat",
+    "article_url": "https://loksabhadocs.nic.in/lsscommittee/Defence/17_Defence_34.pdf",
+    "publication_date": "2023-03-21",
+    "event_description": "Parliamentary committee report on veteran welfare and pensions"
+  },
+  {
+    "id": "EV-39",
+    "text": "Ministry of Defence notifies fifth positive indigenisation list of 98 defense items to promote domestic defense manufacturing.",
+    "label": "general",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "Press Information Bureau (PIB)",
+    "article_url": "https://pib.gov.in/PressReleasePage.aspx?PRID=1964223",
+    "publication_date": "2023-10-04",
+    "event_description": "MoD notification on domestic manufacturing indigenisation list"
+  },
+  {
+    "id": "EV-40",
+    "text": "Annual Army Day parade showcases indigenous military equipment, marching contingents, and gallantry awards presentation.",
+    "label": "general",
+    "provenance_type": "paraphrase_of_real_event",
+    "publisher": "The Hindu",
+    "article_url": "https://www.thehindu.com/news/national/army-day-parade-held-in-bengaluru-showcases-indigenous-weapons/article66380123.ece",
+    "publication_date": "2023-01-15",
+    "event_description": "Army Day parade ceremonies and weapons exhibition in Bengaluru"
+  }
+]
