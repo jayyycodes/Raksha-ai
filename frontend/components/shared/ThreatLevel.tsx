@@ -57,3 +57,4 @@ export const ThreatLevel: React.FC<ThreatLevelProps> = ({ level, num, className,
     </span>
   );
 };
+

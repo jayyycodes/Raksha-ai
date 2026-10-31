@@ -85,3 +85,4 @@ export function formatConfidence(conf: number | null | undefined): string {
   if (conf === null || conf === undefined) return '—';
   return `${Math.round(conf * 100)}%`;
 }
+

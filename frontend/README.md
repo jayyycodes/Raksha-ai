@@ -127,3 +127,4 @@ frontend/
    - Non-color reliant signals: every badge pairs visual color with icons and descriptive text labels.
 5. **URL-Driven State**:
    - Filters, search terms (`q`), sorting order, and pagination are synchronized with browser URL query parameters for shareability.
+

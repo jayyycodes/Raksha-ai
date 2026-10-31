@@ -39,3 +39,4 @@ export const LanguageTag: React.FC<LanguageTagProps> = ({ language, translated, 
     </span>
   );
 };
+

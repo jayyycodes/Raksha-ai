@@ -131,3 +131,4 @@ export const ArticleDetailView: React.FC<{ article: Article }> = ({ article }) =
     </div>
   );
 };
+

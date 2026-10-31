@@ -34,3 +34,4 @@ export const EventTypeTag: React.FC<EventTypeTagProps> = ({ eventType, className
     </span>
   );
 };
+

@@ -73,3 +73,4 @@ export const ArticleCard: React.FC<{ article: Article }> = ({ article }) => {
     </article>
   );
 };
+

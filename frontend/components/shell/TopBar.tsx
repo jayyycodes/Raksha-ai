@@ -62,3 +62,4 @@ export const TopBar: React.FC<TopBarProps> = ({ onToggleSidebar }) => {
     </header>
   );
 };
+

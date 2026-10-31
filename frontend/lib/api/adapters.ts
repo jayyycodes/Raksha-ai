@@ -97,3 +97,4 @@ export function adaptStats(raw: any): SystemStats {
     event_type_breakdown: raw.event_type_breakdown || {},
   };
 }
+

@@ -48,3 +48,4 @@ export const SentimentLabel: React.FC<SentimentLabelProps> = ({ sentiment, class
     </span>
   );
 };
+

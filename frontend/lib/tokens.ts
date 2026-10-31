@@ -62,3 +62,4 @@ export const colors = {
 } as const;
 
 export type RingNumber = 1 | 2 | 3 | 4;
+

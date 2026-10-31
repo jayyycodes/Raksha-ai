@@ -40,3 +40,4 @@ export default async function ArticleDetailPage({ params }: ArticleDetailPagePro
 
   return <ArticleDetailView article={article} />;
 }
+

@@ -165,3 +165,4 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
     </aside>
   );
 };
+

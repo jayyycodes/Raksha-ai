@@ -72,3 +72,4 @@ export interface ArticleFilterParams {
   page?: number;
   page_size?: number;
 }
+

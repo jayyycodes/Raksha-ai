@@ -46,3 +46,4 @@ export const TableRowSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) => {
     </>
   );
 };
+

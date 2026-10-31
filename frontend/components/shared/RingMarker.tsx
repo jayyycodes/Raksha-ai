@@ -52,3 +52,4 @@ export const RingMarker: React.FC<RingMarkerProps> = ({ ring, showLabel = true, 
     </span>
   );
 };
+
