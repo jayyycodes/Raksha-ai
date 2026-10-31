@@ -8,8 +8,26 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from common.config import settings
 
+
+def _normalize_db_url(url: str) -> str:
+    """Ensure explicit PostgreSQL driver selection so SQLAlchemy never fails
+    with ambiguous driver import fallbacks.
+    """
+    if url.startswith("postgresql://"):
+        try:
+            import psycopg2  # noqa: F401
+            return url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        except ImportError:
+            try:
+                import psycopg  # noqa: F401
+                return url.replace("postgresql://", "postgresql+psycopg://", 1)
+            except ImportError:
+                pass
+    return url
+
+
 engine = create_engine(
-    settings.DATABASE_URL,
+    _normalize_db_url(settings.DATABASE_URL),
     pool_size=10,
     max_overflow=20,
     pool_recycle=3600,
