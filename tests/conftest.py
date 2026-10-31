@@ -1,4 +1,6 @@
 """Shared pytest fixtures for all stages."""
+import os
+os.environ.setdefault("DATABASE_URL", "postgresql://raksha:raksha@localhost:5432/rakshaai")
 import pytest
 
 SAMPLE_SOURCE = {
