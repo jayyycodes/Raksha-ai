@@ -1,0 +1,6 @@
+{"id": 1, "region": "LAC-Ladakh", "article_count": 14, "baseline_daily": 3.0, "high_threat_count": 4, "is_anomaly": true, "reason": "Severe volume spike (4.6x baseline) and high threat surge"}
+{"id": 2, "region": "Indian-Ocean", "article_count": 2, "baseline_daily": 2.5, "high_threat_count": 0, "is_anomaly": false, "reason": "Normal routine maritime patrol reports"}
+{"id": 3, "region": "Cyber", "article_count": 8, "baseline_daily": 2.0, "high_threat_count": 3, "is_anomaly": true, "reason": "Spike in state-sponsored malware incidents"}
+{"id": 4, "region": "Western-Border", "article_count": 1, "baseline_daily": 2.2, "high_threat_count": 0, "is_anomaly": false, "reason": "Normal baseline activity"}
+{"id": 5, "region": "LoC-Kashmir", "article_count": 11, "baseline_daily": 3.2, "high_threat_count": 3, "is_anomaly": true, "reason": "Cross-border firing surge and infiltration attempts"}
+{"id": 6, "region": "Northeast", "article_count": 2, "baseline_daily": 2.0, "high_threat_count": 0, "is_anomaly": false, "reason": "Routine border policing reports"}

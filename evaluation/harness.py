@@ -1,10 +1,10 @@
 ﻿"""
 Evaluation Harness for Raksha AI Agents.
 Owner: Jaish
-Stage: 1 (MVP)
+Stage: 2 (Mid)
 
 Provides CLI and programmatic runner to benchmark any agent against labelled sets.
-Generates accuracy, precision, recall, F1, and markdown evaluation summaries for PRs.
+Generates accuracy, precision, recall, F1, grounding rate, and markdown summaries for PRs.
 """
 import argparse
 import json
@@ -60,7 +60,7 @@ def evaluate_classifier(
     metrics = compute_classification_metrics(y_true, y_pred)
     metrics["agent_name"] = agent_name
     metrics["failures_count"] = len(failures)
-    metrics["failures"] = failures[:5]  # first 5 failures for debugging
+    metrics["failures"] = failures[:5]
     return metrics
 
 
@@ -86,10 +86,9 @@ def format_markdown_table(metrics: Dict[str, Any]) -> str:
 
 
 def run_threat_classifier_eval(dataset_path: str = "evaluation/data/threat_level_eval.jsonl") -> Dict[str, Any]:
-    """Helper to benchmark ThreatClassifierV0."""
+    """Benchmark ThreatClassifierV0."""
     from agents.scoring.classifier_v0 import ThreatClassifierV0
     classifier = ThreatClassifierV0()
-
     dataset = load_dataset(dataset_path)
 
     def predict(item: Dict[str, Any]) -> str:
@@ -104,12 +103,116 @@ def run_threat_classifier_eval(dataset_path: str = "evaluation/data/threat_level
     return evaluate_classifier(predict, dataset, target_key="threat_category", agent_name="ThreatClassifierV0")
 
 
+def run_corroboration_eval(dataset_path: str = "evaluation/data/corroboration_eval.jsonl") -> Dict[str, Any]:
+    """Benchmark CorroborationAgent."""
+    from agents.corroboration.corroboration_agent import CorroborationAgent
+    agent = CorroborationAgent()
+    dataset = load_dataset(dataset_path)
+
+    def predict(item: Dict[str, Any]) -> str:
+        out = agent.analyze_pair(
+            source_article_id=item.get("id", 1),
+            source_text=item.get("source_text", ""),
+            source_ring=item.get("source_ring", 1),
+            compare_article_id=item.get("id", 1) + 100,
+            compare_text=item.get("compare_text", ""),
+            compare_ring=item.get("compare_ring", 2),
+        )
+        return out.relation
+
+    return evaluate_classifier(predict, dataset, target_key="target_relation", agent_name="CorroborationAgent")
+
+
+def run_anomaly_eval(dataset_path: str = "evaluation/data/anomaly_eval.jsonl") -> Dict[str, Any]:
+    """Benchmark AnomalyAgent."""
+    from agents.scoring.anomaly_agent import AnomalyAgent
+    agent = AnomalyAgent()
+    dataset = load_dataset(dataset_path)
+
+    def predict(item: Dict[str, Any]) -> str:
+        # Construct synthetic articles matching item count and threat flags
+        count = item.get("article_count", 0)
+        highs = item.get("high_threat_count", 0)
+        arts = []
+        for i in range(count):
+            arts.append({
+                "id": i + 1,
+                "threat_level": 9 if i < highs else 3,
+                "sentiment": "alarming" if i < highs else "neutral",
+            })
+        out = agent.detect_region_anomaly(
+            region=item.get("region", "LAC-Ladakh"),
+            current_articles=arts,
+            baseline_daily_average=item.get("baseline_daily", 2.0),
+        )
+        return str(out.is_anomaly).lower()
+
+    # Normalize ground truth boolean to string
+    normalized_dataset = []
+    for d in dataset:
+        copy_d = dict(d)
+        copy_d["target_anomaly"] = str(d["is_anomaly"]).lower()
+        normalized_dataset.append(copy_d)
+
+    return evaluate_classifier(predict, normalized_dataset, target_key="target_anomaly", agent_name="AnomalyAgent")
+
+
+def run_sitrep_grounding_eval(dataset_path: str = "evaluation/data/sitrep_grounding_eval.jsonl") -> Dict[str, Any]:
+    """Evaluates SitRep sentence-level grounding rate and attribution accuracy."""
+    from agents.report.sitrep_agent import GroundedSitRepAgent
+    agent = GroundedSitRepAgent()
+    dataset = load_dataset(dataset_path)
+
+    correct_flag_count = 0
+    total = len(dataset)
+    supported_count = 0
+
+    for item in dataset:
+        cites, is_supported = agent._extract_citations(item["text"], set(item["valid_ids"]))
+        if is_supported == item["expected_supported"]:
+            correct_flag_count += 1
+        if is_supported:
+            supported_count += 1
+
+    accuracy = round(correct_flag_count / total, 4) if total > 0 else 1.0
+    grounding_rate = round(supported_count / total, 4) if total > 0 else 0.0
+
+    return {
+        "agent_name": "GroundedSitRepAgent",
+        "total_sentences": total,
+        "grounding_attribution_accuracy": accuracy,
+        "sample_grounding_rate": grounding_rate,
+        "unsupported_flagged_correctly": correct_flag_count,
+    }
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Raksha AI Evaluation Harness")
-    parser.add_argument("--agent", choices=["threat_v0"], default="threat_v0")
-    parser.add_argument("--dataset", type=str, default="evaluation/data/threat_level_eval.jsonl")
+    parser.add_argument(
+        "--agent",
+        choices=["threat_v0", "corroboration", "anomaly", "sitrep_grounding", "all"],
+        default="all",
+    )
     args = parser.parse_args()
 
-    if args.agent == "threat_v0":
-        results = run_threat_classifier_eval(args.dataset)
-        print(format_markdown_table(results))
+    if args.agent in ("threat_v0", "all"):
+        res = run_threat_classifier_eval()
+        print(format_markdown_table(res))
+        print("\n" + "=" * 50 + "\n")
+
+    if args.agent in ("corroboration", "all"):
+        res = run_corroboration_eval()
+        print(format_markdown_table(res))
+        print("\n" + "=" * 50 + "\n")
+
+    if args.agent in ("anomaly", "all"):
+        res = run_anomaly_eval()
+        print(format_markdown_table(res))
+        print("\n" + "=" * 50 + "\n")
+
+    if args.agent in ("sitrep_grounding", "all"):
+        res = run_sitrep_grounding_eval()
+        print(f"### SitRep Grounding Verification Report:")
+        print(f"- Total Evaluated Sentences: {res['total_sentences']}")
+        print(f"- Citation Grounding Accuracy: {res['grounding_attribution_accuracy']*100:.2f}%")
+        print(f"- Sample Grounding Rate: {res['sample_grounding_rate']*100:.2f}%")

@@ -110,6 +110,9 @@ def test_profile_schemas():
 
 
 def test_db_migration_003_tables_exist():
+    from common.db import check_connection
+    if not check_connection():
+        pytest.skip("PostgreSQL database is offline")
     with get_db() as db:
         res = db.execute(
             text("""

@@ -17,6 +17,7 @@ class Settings:
     LOG_LEVEL: str
     PROXY_URL: str | None
     GROQ_API_KEY: str | None
+    GROQ_MODEL: str
 
 
 def _load() -> Settings:
@@ -30,6 +31,7 @@ def _load() -> Settings:
         LOG_LEVEL=os.getenv("LOG_LEVEL", "INFO"),
         PROXY_URL=os.getenv("PROXY_URL", None),
         GROQ_API_KEY=os.getenv("GROQ_API_KEY", None),
+        GROQ_MODEL=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
     )
 
 
