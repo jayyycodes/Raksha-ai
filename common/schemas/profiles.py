@@ -47,3 +47,4 @@ class ProfileDetailOut(BaseModel):
     timeline: List[ProfileTimelineEvent] = Field(default_factory=list)
     associates: List[Dict[str, Any]] = Field(default_factory=list)
     locations: List[Dict[str, Any]] = Field(default_factory=list)
+

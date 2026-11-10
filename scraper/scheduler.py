@@ -17,6 +17,7 @@ from common.db import get_db, check_connection
 from common.logger import get_logger
 from scraper.rss_scraper import scrape_all_sources
 from scraper.news_api import fetch_newsapi
+from scraper.gdelt import fetch_gdelt_articles
 from scraper.sources import RSS_SOURCES
 
 logger = get_logger(__name__)
@@ -83,7 +84,8 @@ def run_scrape_cycle():
 
     rss_articles = scrape_all_sources(RSS_SOURCES)
     api_articles = fetch_newsapi()
-    all_articles = rss_articles + api_articles
+    gdelt_articles = fetch_gdelt_articles()
+    all_articles = rss_articles + api_articles + gdelt_articles
 
     inserted, skipped = _insert_articles(all_articles)
     # Run the NLP pipeline on newly inserted articles

@@ -58,12 +58,16 @@ def scrape_source(source: dict) -> list[dict]:
     ring         = source.get("ring", 4)
 
     # Optional proxy for Ring 2 adversary sources
-    proxies = None
+    handlers = []
     if ring == RING_ADVERSARY and settings.PROXY_URL:
-        proxies = {"http": settings.PROXY_URL, "https": settings.PROXY_URL}
+        import urllib.request
+        handlers.append(urllib.request.ProxyHandler({
+            "http": settings.PROXY_URL,
+            "https": settings.PROXY_URL,
+        }))
 
     try:
-        feed = feedparser.parse(rss_url, agent=USER_AGENT)
+        feed = feedparser.parse(rss_url, agent=USER_AGENT, handlers=handlers)
 
         if feed.bozo and not feed.entries:
             logger.warning(f"[{name}] Malformed or unreachable feed: {rss_url}")

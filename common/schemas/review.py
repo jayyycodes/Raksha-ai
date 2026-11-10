@@ -31,3 +31,4 @@ class ReviewActionIn(BaseModel):
 class ReviewQueueResponse(BaseModel):
     suggestions: List[MergeSuggestionOut] = Field(default_factory=list)
     total_pending: int = 0
+

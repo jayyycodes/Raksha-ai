@@ -124,3 +124,4 @@ def test_db_migration_003_tables_exist():
         assert "merge_suggestions" in tables
         assert "profile_facts" in tables
         assert "watchlists" in tables
+
