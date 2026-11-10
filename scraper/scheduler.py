@@ -6,7 +6,7 @@ Executes one full cycle on startup, then repeats every SCRAPE_INTERVAL_HOURS.
 """
 import signal
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -77,7 +77,7 @@ def _insert_articles(articles: list[dict]) -> tuple[int, int]:
 
 def run_scrape_cycle():
     """One full cycle: fetch all sources → deduplicate → store."""
-    start = datetime.utcnow()
+    start = datetime.now(timezone.utc)
     logger.info("=" * 60)
     logger.info(f"Scrape cycle started at {start.strftime('%Y-%m-%d %H:%M:%S')} UTC")
 
@@ -90,7 +90,7 @@ def run_scrape_cycle():
     from pipeline.runner import process_new_articles
     process_new_articles()
 
-    elapsed = (datetime.utcnow() - start).total_seconds()
+    elapsed = (datetime.now(timezone.utc) - start).total_seconds()
     logger.info(
         f"Cycle complete in {elapsed:.1f}s — "
         f"Fetched: {len(all_articles)} | Inserted: {inserted} | Skipped: {skipped}"

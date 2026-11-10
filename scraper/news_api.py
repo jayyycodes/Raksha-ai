@@ -3,7 +3,7 @@ NewsAPI scraper — fetches defence-relevant articles via NewsAPI.
 Free tier: 100 req/day. We use ~6/day at 4-hour intervals.
 """
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 
 import httpx
 
@@ -56,7 +56,7 @@ def fetch_newsapi(keywords: list[str] | None = None) -> list[dict]:
             try:
                 published_at = datetime.strptime(published_raw, "%Y-%m-%dT%H:%M:%SZ")
             except Exception:
-                published_at = datetime.utcnow()
+                published_at = datetime.now(timezone.utc)
 
             articles.append({
                 "source_name":  item.get("source", {}).get("name", "NewsAPI"),
