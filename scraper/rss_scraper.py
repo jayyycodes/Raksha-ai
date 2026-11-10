@@ -2,9 +2,13 @@
 RSS feed scraper — fetches and parses articles from all RSS sources.
 """
 import hashlib
+import socket
 import time
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+
+# Prevent feedparser/urllib hangs on slow feeds
+socket.setdefaulttimeout(10.0)
 
 import feedparser
 from langdetect import detect, LangDetectException
