@@ -165,3 +165,4 @@ def get_entity_graph(
         total_nodes=len(nodes),
         total_edges=len(edges),
     )
+

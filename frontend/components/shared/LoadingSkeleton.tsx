@@ -1,6 +1,10 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 
+export const LoadingSkeleton: React.FC<{ className?: string }> = ({ className }) => {
+  return <div className={cn('animate-pulse bg-subtle-fill rounded', className)} />;
+};
+
 export const ArticleCardSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => {
   return (
     <div className="space-y-4">

@@ -22,9 +22,9 @@ def get_db():
 
 
 def _seed_sample_review_queue(db):
-    """Seed sample disambiguation suggestions if queue is empty."""
-    count = db.execute(text("SELECT COUNT(*) FROM merge_suggestions")).scalar()
-    if count == 0:
+    """Seed sample disambiguation suggestions if queue has no pending items."""
+    pending_count = db.execute(text("SELECT COUNT(*) FROM merge_suggestions WHERE status = 'pending'")).scalar()
+    if pending_count == 0:
         # Create pair if not exists
         db.execute(
             text("""
@@ -42,6 +42,15 @@ def _seed_sample_review_queue(db):
                 FROM entity_nodes s, entity_nodes t
                 WHERE s.name = 'JeM' AND t.name = 'Jaish-e-Mohammed'
                 ON CONFLICT DO NOTHING
+            """)
+        )
+        # In case the row existed but was updated to accepted/rejected in previous test
+        db.execute(
+            text("""
+                UPDATE merge_suggestions
+                SET status = 'pending'
+                WHERE source_node_id IN (SELECT id FROM entity_nodes WHERE name = 'JeM')
+                  AND status != 'pending'
             """)
         )
 
@@ -164,3 +173,4 @@ def take_review_action(
         reviewed_at=now,
         created_at=row.created_at or now,
     )
+

@@ -231,3 +231,4 @@ def get_profile_detail(profile_id: int, db=Depends(get_db)):
         associates=associates,
         locations=locations,
     )
+

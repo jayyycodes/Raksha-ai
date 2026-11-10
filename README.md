@@ -256,16 +256,16 @@ Three stages over about six months. Adjust to the college calendar. Tick the box
 
 #### Jay
 
-- [ ] Grow to 40 sources; add the GDELT connector and proxy support for blocked sources
-- [ ] Entity graph API and **interactive graph view** (Cytoscape.js)
-- [ ] Leaflet incident map, 30-day threat graph (Recharts), event timeline
-- [ ] **Profile pages**: header, summary, timeline, map, associates, sources, notes
-- [ ] **Merge and split review queue** UI; analysts accept, reject, merge, split and undo
-- [ ] Unified search (full text plus semantic) and watchlists with alerts
-- [ ] Lineage panel: "why is this here?" showing sources and method
-- [ ] SitRep viewer with PDF export; 6 AM scheduled job
-- [ ] Attribution rules in the UI: every statement shows source and claim status; no unattributed labels
-- [ ] New endpoints: `/api/graph`, `/api/entities/{id}`, `/api/search`, `/api/watchlists`, `/api/profiles`, `/api/profiles/{id}/timeline`, `/api/merge-suggestions`, `/api/alerts`
+- [x] Grow to 40 sources; add the GDELT connector and proxy support for blocked sources
+- [x] Entity graph API and **interactive graph view** (Cytoscape.js)
+- [x] Leaflet incident map, 30-day threat graph, event timeline
+- [x] **Profile pages**: header, summary, timeline, map, associates, sources, notes
+- [x] **Merge and split review queue** UI; analysts accept, reject, merge, split and undo
+- [x] Unified search (full text plus semantic) and watchlists with alerts
+- [x] Lineage panel: "why is this here?" showing sources and method
+- [x] SitRep viewer with PDF export; 6 AM scheduled job
+- [x] Attribution rules in the UI: every statement shows source and claim status; no unattributed labels
+- [x] New endpoints: `/api/graph`, `/api/entities/{id}`, `/api/search`, `/api/watchlists`, `/api/profiles`, `/api/profiles/{id}/timeline`, `/api/merge-suggestions`, `/api/alerts`
 
 #### Ary
 

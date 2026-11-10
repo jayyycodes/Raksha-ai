@@ -30,6 +30,8 @@ export function formatIST(dateStr: string | null | undefined): string {
   }
 }
 
+export const formatISTDate = formatIST;
+
 /**
  * Formats time only in IST
  * Example: "14:45 IST"

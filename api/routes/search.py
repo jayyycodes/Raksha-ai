@@ -83,3 +83,4 @@ def unified_search(
         "articles": articles,
         "entities": entities,
     }
+

@@ -15,6 +15,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
 
   const isArticlesActive = pathname.startsWith('/articles');
   const isSourcesActive = pathname.startsWith('/sources');
+  const isMapActive = pathname.startsWith('/map');
+  const isGraphActive = pathname.startsWith('/graph');
+  const isProfilesActive = pathname.startsWith('/profiles');
+  const isReviewActive = pathname.startsWith('/review');
+  const isSitrepActive = pathname.startsWith('/sitrep');
 
   return (
     <aside
@@ -35,7 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
                 RAKSHA AI
               </span>
               <span className="text-[10px] uppercase font-bold text-accent-saffron ml-1.5 px-1.5 py-0.5 rounded bg-accent-saffron-light border border-accent-saffron/20">
-                MVP
+                STAGE 2
               </span>
             </div>
           </div>
@@ -79,76 +84,81 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
             </Link>
           </nav>
 
-          {/* Coming Later in Mid / Solid Stage */}
-          <div className="mt-8 px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-text-muted">
-            Advanced Modules
+          {/* Stage 2 Intelligence Modules */}
+          <div className="mt-6 px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+            Intelligence Analysis
           </div>
-          <div className="space-y-1 opacity-70">
-            <div
-              className="flex items-center justify-between px-3 py-2 text-xs text-text-muted cursor-not-allowed rounded"
-              title="Available in Stage 2 (Mid)"
+          <nav className="space-y-1">
+            <Link
+              href="/map"
+              onClick={onNavigate}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-navy',
+                isMapActive
+                  ? 'bg-subtle-fill text-primary-navy font-bold border-l-2 border-primary-navy'
+                  : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
+              )}
             >
-              <div className="flex items-center gap-3">
-                <span className="text-base">🗺️</span>
-                <span>Incident Map</span>
-              </div>
-              <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-subtle-fill border border-border text-text-muted">
-                Mid
-              </span>
-            </div>
+              <span className="text-base">🗺️</span>
+              <span>Incident Map</span>
+            </Link>
 
-            <div
-              className="flex items-center justify-between px-3 py-2 text-xs text-text-muted cursor-not-allowed rounded"
-              title="Available in Stage 2 (Mid)"
+            <Link
+              href="/graph"
+              onClick={onNavigate}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-navy',
+                isGraphActive
+                  ? 'bg-subtle-fill text-primary-navy font-bold border-l-2 border-primary-navy'
+                  : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
+              )}
             >
-              <div className="flex items-center gap-3">
-                <span className="text-base">🕸️</span>
-                <span>Entity Graph</span>
-              </div>
-              <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-subtle-fill border border-border text-text-muted">
-                Mid
-              </span>
-            </div>
+              <span className="text-base">🕸️</span>
+              <span>Entity Graph</span>
+            </Link>
 
-            <div
-              className="flex items-center justify-between px-3 py-2 text-xs text-text-muted cursor-not-allowed rounded"
-              title="Available in Stage 2 (Mid)"
+            <Link
+              href="/profiles"
+              onClick={onNavigate}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-navy',
+                isProfilesActive
+                  ? 'bg-subtle-fill text-primary-navy font-bold border-l-2 border-primary-navy'
+                  : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
+              )}
             >
-              <div className="flex items-center gap-3">
-                <span className="text-base">👤</span>
-                <span>Entity Profiles</span>
-              </div>
-              <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-subtle-fill border border-border text-text-muted">
-                Mid
-              </span>
-            </div>
+              <span className="text-base">👤</span>
+              <span>Entity Profiles</span>
+            </Link>
 
-            <div
-              className="flex items-center justify-between px-3 py-2 text-xs text-text-muted cursor-not-allowed rounded"
-              title="Available in Stage 2 (Mid)"
+            <Link
+              href="/review"
+              onClick={onNavigate}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-navy',
+                isReviewActive
+                  ? 'bg-subtle-fill text-primary-navy font-bold border-l-2 border-primary-navy'
+                  : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
+              )}
             >
-              <div className="flex items-center gap-3">
-                <span className="text-base">📑</span>
-                <span>Situation Report</span>
-              </div>
-              <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-subtle-fill border border-border text-text-muted">
-                Mid
-              </span>
-            </div>
+              <span className="text-base">⚖️</span>
+              <span>Review Queue</span>
+            </Link>
 
-            <div
-              className="flex items-center justify-between px-3 py-2 text-xs text-text-muted cursor-not-allowed rounded"
-              title="Available in Stage 2 (Mid)"
+            <Link
+              href="/sitrep"
+              onClick={onNavigate}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-navy',
+                isSitrepActive
+                  ? 'bg-subtle-fill text-primary-navy font-bold border-l-2 border-primary-navy'
+                  : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
+              )}
             >
-              <div className="flex items-center gap-3">
-                <span className="text-base">🔍</span>
-                <span>Unified Search</span>
-              </div>
-              <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-subtle-fill border border-border text-text-muted">
-                Mid
-              </span>
-            </div>
-          </div>
+              <span className="text-base">📑</span>
+              <span>Situation Report</span>
+            </Link>
+          </nav>
         </div>
       </div>
 

@@ -103,3 +103,4 @@ def test_unified_search(client):
     assert data["query"] == "Army"
     assert "articles" in data
     assert "entities" in data
+

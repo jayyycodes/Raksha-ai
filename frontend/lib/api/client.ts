@@ -133,3 +133,102 @@ export async function fetchSourcesHealth(): Promise<SourceHealth[]> {
   }
 }
 
+// ── Stage 2 Client Methods ──────────────────────────────────────
+
+export async function fetchMapIncidents(params?: { ring?: string; threat_min?: number }): Promise<import('./types').MapIncident[]> {
+  try {
+    const url = new URL(`${BASE_URL}/api/map/incidents`);
+    if (params?.ring && params.ring !== 'all') url.searchParams.set('ring', params.ring);
+    if (params?.threat_min) url.searchParams.set('threat_level_min', String(params.threat_min));
+
+    const res = await fetch(url.toString(), { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.incidents || [];
+  } catch (err) {
+    console.warn('API error fetching map incidents:', err);
+    return [];
+  }
+}
+
+export async function fetchGraphData(params?: { ring?: string; entity_type?: string; q?: string }): Promise<import('./types').GraphData> {
+  try {
+    const url = new URL(`${BASE_URL}/api/graph`);
+    if (params?.ring && params.ring !== 'all') url.searchParams.set('ring', params.ring);
+    if (params?.entity_type && params.entity_type !== 'all') url.searchParams.set('entity_type', params.entity_type);
+    if (params?.q) url.searchParams.set('q', params.q);
+
+    const res = await fetch(url.toString(), { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    console.warn('API error fetching graph data:', err);
+    return { nodes: [], edges: [], total_nodes: 0, total_edges: 0 };
+  }
+}
+
+export async function fetchProfiles(params?: { entity_type?: string; ring?: string; q?: string }): Promise<import('./types').ProfileHeaderItem[]> {
+  try {
+    const url = new URL(`${BASE_URL}/api/profiles`);
+    if (params?.entity_type && params.entity_type !== 'all') url.searchParams.set('entity_type', params.entity_type);
+    if (params?.ring && params.ring !== 'all') url.searchParams.set('ring', params.ring);
+    if (params?.q) url.searchParams.set('q', params.q);
+
+    const res = await fetch(url.toString(), { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('API error fetching profiles:', err);
+    return [];
+  }
+}
+
+export async function fetchProfileById(id: number): Promise<import('./types').ProfileDetailData | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/profiles/${id}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn(`API error fetching profile ${id}:`, err);
+    return null;
+  }
+}
+
+export async function fetchReviewQueue(status: string = 'pending'): Promise<import('./types').MergeSuggestionItem[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/review?status=${status}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.suggestions || [];
+  } catch (err) {
+    console.warn('API error fetching review queue:', err);
+    return [];
+  }
+}
+
+export async function submitReviewAction(id: number, action: 'accept' | 'reject' | 'split'): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/review/${id}/action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, analyst_name: 'lead_analyst' }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('API error submitting review action:', err);
+    return false;
+  }
+}
+
+export async function fetchLatestSitRep(): Promise<import('./types').SitRepData | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/sitreps/latest`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('API error fetching latest sitrep:', err);
+    return null;
+  }
+}
+
