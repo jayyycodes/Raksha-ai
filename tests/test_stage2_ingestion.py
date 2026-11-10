@@ -115,3 +115,4 @@ def test_adversary_proxy_wiring(monkeypatch):
         kwargs = mock_parse.call_args[1]
         handlers = kwargs.get("handlers", [])
         assert len(handlers) == 1
+

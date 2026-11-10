@@ -100,3 +100,4 @@ def fetch_gdelt_articles(
         logger.error(f"[GDELT] Scrape failed: {e}")
 
     return []
+

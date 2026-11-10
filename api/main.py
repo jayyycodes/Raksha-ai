@@ -46,11 +46,25 @@ def health_check():
     }
 
 
-# ── MVP Routers ─────────────────────────────────────────────────
+# ── Stage 1 MVP Routers ──────────────────────────────────────────
 from api.routes.articles import router as articles_router
 from api.routes.sources import router as sources_router
 from api.routes.stats import router as stats_router
 
+# ── Stage 2 Mid Routers (Ontology, Graph, Geospatial, Review) ────
+from api.routes.graph import router as graph_router
+from api.routes.map import router as map_router
+from api.routes.profiles import router as profiles_router
+from api.routes.review import router as review_router
+from api.routes.sitrep import router as sitrep_router
+from api.routes.search import router as search_router
+
 app.include_router(articles_router, prefix="/api")
 app.include_router(sources_router, prefix="/api")
 app.include_router(stats_router, prefix="/api")
+app.include_router(graph_router, prefix="/api")
+app.include_router(map_router, prefix="/api")
+app.include_router(profiles_router, prefix="/api")
+app.include_router(review_router, prefix="/api")
+app.include_router(sitrep_router, prefix="/api")
+app.include_router(search_router, prefix="/api")
