@@ -6,7 +6,7 @@ Executes one full cycle on startup, then repeats every SCRAPE_INTERVAL_HOURS.
 """
 import signal
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -17,6 +17,7 @@ from common.db import get_db, check_connection
 from common.logger import get_logger
 from scraper.rss_scraper import scrape_all_sources
 from scraper.news_api import fetch_newsapi
+from scraper.gdelt import fetch_gdelt_articles
 from scraper.sources import RSS_SOURCES
 
 logger = get_logger(__name__)
@@ -77,20 +78,21 @@ def _insert_articles(articles: list[dict]) -> tuple[int, int]:
 
 def run_scrape_cycle():
     """One full cycle: fetch all sources → deduplicate → store."""
-    start = datetime.utcnow()
+    start = datetime.now(timezone.utc)
     logger.info("=" * 60)
     logger.info(f"Scrape cycle started at {start.strftime('%Y-%m-%d %H:%M:%S')} UTC")
 
     rss_articles = scrape_all_sources(RSS_SOURCES)
     api_articles = fetch_newsapi()
-    all_articles = rss_articles + api_articles
+    gdelt_articles = fetch_gdelt_articles()
+    all_articles = rss_articles + api_articles + gdelt_articles
 
     inserted, skipped = _insert_articles(all_articles)
     # Run the NLP pipeline on newly inserted articles
     from pipeline.runner import process_new_articles
     process_new_articles()
 
-    elapsed = (datetime.utcnow() - start).total_seconds()
+    elapsed = (datetime.now(timezone.utc) - start).total_seconds()
     logger.info(
         f"Cycle complete in {elapsed:.1f}s — "
         f"Fetched: {len(all_articles)} | Inserted: {inserted} | Skipped: {skipped}"

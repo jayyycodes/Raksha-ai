@@ -17,3 +17,12 @@ ALTER TABLE article_analysis ADD COLUMN IF NOT EXISTS reviewed_by VARCHAR(100);
 ALTER TABLE article_analysis ADD COLUMN IF NOT EXISTS claim_status VARCHAR(30);
 ALTER TABLE article_analysis ADD COLUMN IF NOT EXISTS source_type VARCHAR(20);
 
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'uq_article_analysis_article_id'
+    ) THEN
+        ALTER TABLE article_analysis ADD CONSTRAINT uq_article_analysis_article_id UNIQUE (article_id);
+    END IF;
+END $$;
+

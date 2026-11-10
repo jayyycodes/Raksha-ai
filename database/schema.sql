@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS articles (
 -- TABLE 3: article_analysis
 CREATE TABLE IF NOT EXISTS article_analysis (
     id              SERIAL PRIMARY KEY,
-    article_id      INTEGER REFERENCES articles(id) ON DELETE CASCADE,
+    article_id      INTEGER UNIQUE REFERENCES articles(id) ON DELETE CASCADE,
     translated_text TEXT,
     event_type      VARCHAR(50),
     sentiment       VARCHAR(20),

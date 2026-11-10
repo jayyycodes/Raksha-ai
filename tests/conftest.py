@@ -1,6 +1,9 @@
 """Shared pytest fixtures for all stages."""
 import os
-os.environ.setdefault("DATABASE_URL", "postgresql://raksha:raksha@localhost:5432/rakshaai")
+from dotenv import load_dotenv
+
+load_dotenv()
+os.environ.setdefault("DATABASE_URL", "postgresql://raksha:raksha@localhost:5434/rakshaai")
 import pytest
 
 SAMPLE_SOURCE = {

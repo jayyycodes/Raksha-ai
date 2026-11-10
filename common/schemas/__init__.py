@@ -35,6 +35,10 @@ from common.schemas.intelligence import (
     CorroborationLinkOut,
     CorroborationOut,
 )
+from common.schemas.graph import GraphNode, GraphEdge, GraphResponse
+from common.schemas.map import MapIncident, MapResponse
+from common.schemas.review import MergeSuggestionOut, ReviewActionIn, ReviewQueueResponse
+from common.schemas.profiles import ProfileHeader, ProfileDetailOut, ProfileTimelineEvent
 
 __all__ = [
     "ClaimStatus",
@@ -66,4 +70,15 @@ __all__ = [
     "CorroborationIn",
     "CorroborationLinkOut",
     "CorroborationOut",
+    "GraphNode",
+    "GraphEdge",
+    "GraphResponse",
+    "MapIncident",
+    "MapResponse",
+    "MergeSuggestionOut",
+    "ReviewActionIn",
+    "ReviewQueueResponse",
+    "ProfileHeader",
+    "ProfileDetailOut",
+    "ProfileTimelineEvent",
 ]

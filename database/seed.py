@@ -18,15 +18,20 @@ def seed_sources():
                 text("""
                     INSERT INTO sources (name, url, rss_url, ring, country, language)
                     VALUES (:name, :url, :rss_url, :ring, :country, :language)
-                    ON CONFLICT DO NOTHING
+                    ON CONFLICT (name) DO UPDATE SET
+                        url = EXCLUDED.url,
+                        rss_url = EXCLUDED.rss_url,
+                        ring = EXCLUDED.ring,
+                        country = EXCLUDED.country,
+                        language = EXCLUDED.language
                 """),
                 source,
             )
             if result.rowcount:
                 inserted += 1
         logger.info(
-            f"Seeded {inserted} new sources "
-            f"({len(RSS_SOURCES) - inserted} already existed)"
+            f"Seeded / updated {inserted} sources "
+            f"({len(RSS_SOURCES)} total in registry)"
         )
 
 
