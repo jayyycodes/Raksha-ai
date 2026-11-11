@@ -39,7 +39,7 @@ def sources_health(db=Depends(get_db)):
     """Per-source freshness across all registered monitoring outlets."""
     rows = db.execute(
         text("""
-            SELECT s.id AS source_id, s.name, s.ring, s.language, s.country,
+            SELECT s.id AS source_id, s.name, s.ring, s.language, s.country, s.url, s.rss_url,
                    COALESCE(sh.last_fetched, s.last_scraped_at) AS last_fetched,
                    COALESCE(sh.last_success, s.last_scraped_at) AS last_success,
                    COALESCE(sh.article_count, COUNT(a.id)) AS article_count,
@@ -47,7 +47,7 @@ def sources_health(db=Depends(get_db)):
             FROM sources s
             LEFT JOIN source_health sh ON sh.source_id = s.id
             LEFT JOIN articles a ON a.source_id = s.id
-            GROUP BY s.id, s.name, s.ring, s.language, s.country, sh.last_fetched, sh.last_success, sh.article_count, sh.status
+            GROUP BY s.id, s.name, s.ring, s.language, s.country, s.url, s.rss_url, sh.last_fetched, sh.last_success, sh.article_count, sh.status
             ORDER BY s.ring ASC, s.name ASC
         """)
     ).fetchall()

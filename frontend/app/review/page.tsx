@@ -5,27 +5,37 @@ import { fetchReviewQueue, submitReviewAction } from '@/lib/api/client';
 import { MergeSuggestionItem } from '@/lib/api/types';
 
 export default function ReviewQueuePage() {
+  const [statusFilter, setStatusFilter] = useState<'pending' | 'accepted' | 'rejected'>('pending');
   const [suggestions, setSuggestions] = useState<MergeSuggestionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [actingId, setActingId] = useState<number | null>(null);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
-  async function loadData() {
+  async function loadData(status: 'pending' | 'accepted' | 'rejected') {
     setLoading(true);
-    const data = await fetchReviewQueue('pending');
+    const data = await fetchReviewQueue(status);
     setSuggestions(data);
     setLoading(false);
   }
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(statusFilter);
+  }, [statusFilter]);
 
   async function handleAction(id: number, action: 'accept' | 'reject' | 'split') {
     setActingId(id);
     const ok = await submitReviewAction(id, action);
     if (ok) {
-      // Remove from pending list
+      // Remove from current list if looking at pending
+      const target = suggestions.find((s) => s.id === id);
+      const namePair = target ? `"${target.source_name}" ➔ "${target.target_name}"` : 'Candidate';
+      setAlertMessage(
+        action === 'accept'
+          ? `Disambiguation Accepted: ${namePair} merged into canonical profile.`
+          : `Disambiguation Rejected: ${namePair} designated as separate entity.`
+      );
       setSuggestions((prev) => prev.filter((s) => s.id !== id));
+      setTimeout(() => setAlertMessage(null), 5000);
     }
     setActingId(null);
   }
@@ -33,14 +43,41 @@ export default function ReviewQueuePage() {
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
-      <div>
-        <h1 className="font-serif font-bold text-2xl text-text-primary tracking-tight">
-          Entity Disambiguation Review Queue
-        </h1>
-        <p className="text-xs text-text-muted mt-0.5">
-          Human-in-the-loop analyst decisions for candidate aliases, name variants, and entity merges.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="font-serif font-bold text-2xl text-text-primary tracking-tight">
+            Entity Disambiguation Review Queue
+          </h1>
+          <p className="text-xs text-text-muted mt-0.5">
+            Human-in-the-loop analyst decisions for candidate aliases, name variants, and entity merges.
+          </p>
+        </div>
+
+        {/* Status Filter Tabs */}
+        <div className="flex items-center gap-1 bg-subtle-fill p-1 rounded-md border border-border text-xs">
+          {(['pending', 'accepted', 'rejected'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setStatusFilter(tab)}
+              className={`px-3 py-1 rounded font-semibold capitalize transition-colors ${
+                statusFilter === tab
+                  ? 'bg-card text-primary-navy shadow-xs border border-border'
+                  : 'text-text-muted hover:text-text-primary'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Confirmation Alert */}
+      {alertMessage && (
+        <div className="p-3 bg-status-green-light border border-status-green/30 rounded-md text-xs font-semibold text-status-green flex items-center justify-between">
+          <span>✓ {alertMessage}</span>
+          <button onClick={() => setAlertMessage(null)} className="text-xs underline ml-3">Dismiss</button>
+        </div>
+      )}
 
       {/* Review Queue List */}
       {!loading && suggestions.length > 0 ? (
@@ -90,26 +127,38 @@ export default function ReviewQueuePage() {
               {/* Actions */}
               <div className="flex items-center justify-between pt-3 border-t border-border">
                 <span className="text-[11px] text-text-muted">
-                  Action logs to immutable audit trail.
+                  {statusFilter === 'pending'
+                    ? 'Action logs to immutable audit trail.'
+                    : `Reviewed by ${s.reviewed_by || 'analyst'} at ${s.reviewed_at ? new Date(s.reviewed_at).toLocaleTimeString() : 'record'}`}
                 </span>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    disabled={actingId === s.id}
-                    onClick={() => handleAction(s.id, 'reject')}
-                    className="px-3 py-1.5 rounded bg-subtle-fill hover:bg-border text-text-secondary text-xs font-semibold border border-border transition-colors disabled:opacity-50"
-                  >
-                    Keep Separate (Reject)
-                  </button>
+                {statusFilter === 'pending' ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      disabled={actingId === s.id}
+                      onClick={() => handleAction(s.id, 'reject')}
+                      className="px-3 py-1.5 rounded bg-subtle-fill hover:bg-border text-text-secondary text-xs font-semibold border border-border transition-colors disabled:opacity-50"
+                    >
+                      Keep Separate (Reject)
+                    </button>
 
-                  <button
-                    disabled={actingId === s.id}
-                    onClick={() => handleAction(s.id, 'accept')}
-                    className="px-4 py-1.5 rounded bg-status-green text-white hover:bg-status-green-dark text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
-                  >
-                    {actingId === s.id ? 'Processing...' : 'Accept Merge'}
-                  </button>
-                </div>
+                    <button
+                      disabled={actingId === s.id}
+                      onClick={() => handleAction(s.id, 'accept')}
+                      className="px-4 py-1.5 rounded bg-status-green text-white hover:bg-status-green-dark text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+                    >
+                      {actingId === s.id ? 'Processing...' : 'Accept Merge'}
+                    </button>
+                  </div>
+                ) : (
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded border ${
+                    s.status === 'accepted'
+                      ? 'bg-status-green-light text-status-green border-status-green/30'
+                      : 'bg-subtle-fill text-text-muted border-border'
+                  }`}>
+                    Status: {s.status}
+                  </span>
+                )}
               </div>
             </div>
           ))}

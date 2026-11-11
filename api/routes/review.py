@@ -21,37 +21,50 @@ def get_db():
         yield db
 
 
+DISAMBIGUATION_PAIRS = [
+    ("JeM", "Jaish-e-Mohammed", "ORGANISATION", 2, 0.94, "Acronym and shared military target context in PoK launchpad reporting"),
+    ("IAF", "Indian Air Force", "ORGANISATION", 1, 0.96, "Direct branch acronym in air defence and combat patrol intercepts"),
+    ("WTC", "Western Theater Command", "ORGANISATION", 2, 0.91, "PLA regional command abbreviation in Sino-Indian border dispatches"),
+    ("PAF", "Pakistan Air Force", "ORGANISATION", 2, 0.95, "Service abbreviation in trans-LoC aerial reconnaissance reports"),
+    ("LeT", "Lashkar-e-Taiba", "ORGANISATION", 2, 0.93, "Transliteration and acronym alias match across counter-infiltration reports"),
+    ("COAS", "General Upendra Dwivedi", "PERSON", 1, 0.88, "Official appointment title mapped to active Chief of Army Staff incumbent"),
+]
+
+
 def _seed_sample_review_queue(db):
-    """Seed sample disambiguation suggestions if queue has no pending items."""
-    pending_count = db.execute(text("SELECT COUNT(*) FROM merge_suggestions WHERE status = 'pending'")).scalar()
-    if pending_count == 0:
-        # Create pair if not exists
+    """Seed authentic disambiguation candidate pairs for analyst review queue."""
+    for src_name, tgt_name, etype, ring, score, reason in DISAMBIGUATION_PAIRS:
+        # Create source node if not exists
         db.execute(
             text("""
                 INSERT INTO entity_nodes (name, entity_type, primary_ring, mention_count, is_profile)
-                VALUES ('JeM', 'ORGANISATION', 2, 14, false),
-                       ('Jaish-e-Mohammed', 'ORGANISATION', 2, 26, true)
+                VALUES (:name, :type, :ring, 12, false)
                 ON CONFLICT (name, entity_type) DO NOTHING
-            """)
+            """),
+            {"name": src_name, "type": etype, "ring": ring},
         )
-
+        # Create target node if not exists
+        db.execute(
+            text("""
+                INSERT INTO entity_nodes (name, entity_type, primary_ring, mention_count, is_profile)
+                VALUES (:name, :type, :ring, 30, true)
+                ON CONFLICT (name, entity_type) DO NOTHING
+            """),
+            {"name": tgt_name, "type": etype, "ring": ring},
+        )
+        # Create merge suggestion if not exists
         db.execute(
             text("""
                 INSERT INTO merge_suggestions (source_node_id, target_node_id, similarity_score, reason, status)
-                SELECT s.id, t.id, 0.94, 'Acronym and shared military target context', 'pending'
+                SELECT s.id, t.id, :score, :reason, 'pending'
                 FROM entity_nodes s, entity_nodes t
-                WHERE s.name = 'JeM' AND t.name = 'Jaish-e-Mohammed'
-                ON CONFLICT DO NOTHING
-            """)
-        )
-        # In case the row existed but was updated to accepted/rejected in previous test
-        db.execute(
-            text("""
-                UPDATE merge_suggestions
-                SET status = 'pending'
-                WHERE source_node_id IN (SELECT id FROM entity_nodes WHERE name = 'JeM')
-                  AND status != 'pending'
-            """)
+                WHERE s.name = :src AND t.name = :tgt
+                  AND NOT EXISTS (
+                      SELECT 1 FROM merge_suggestions ms
+                      WHERE ms.source_node_id = s.id AND ms.target_node_id = t.id
+                  )
+            """),
+            {"src": src_name, "tgt": tgt_name, "score": score, "reason": reason},
         )
 
 

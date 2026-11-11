@@ -80,7 +80,7 @@ def test_review_queue_and_action(client):
     sug_id = data["suggestions"][0]["id"]
     action_res = client.post(
         f"/api/review/{sug_id}/action",
-        json={"action": "accept", "analyst_name": "lead_analyst", "notes": "Verified verified alias"}
+        json={"action": "accept", "analyst_name": "lead_analyst", "notes": "Attributed and confirmed canonical alias"}
     )
     assert action_res.status_code == 200
     assert action_res.json()["status"] == "accepted"
