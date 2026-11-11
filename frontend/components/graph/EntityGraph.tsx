@@ -119,9 +119,21 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({ data }) => {
       }
     });
 
+    // Ensure proper sizing and fit after DOM mount
+    cy.ready(() => {
+      cy.resize();
+      cy.fit(undefined, 35);
+    });
+
+    const timer = setTimeout(() => {
+      cy.resize();
+      cy.fit(undefined, 35);
+    }, 150);
+
     cyRef.current = cy;
 
     return () => {
+      clearTimeout(timer);
       cy.destroy();
     };
   }, [data]);

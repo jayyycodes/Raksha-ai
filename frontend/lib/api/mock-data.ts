@@ -447,3 +447,35 @@ export const MOCK_SOURCES_HEALTH: SourceHealth[] = [
   },
 ];
 
+export const MOCK_GRAPH_DATA: import('./types').GraphData = {
+  total_nodes: 13,
+  total_edges: 10,
+  nodes: [
+    { id: 'node_1', label: 'Indian Army', entity_type: 'ORGANISATION', primary_ring: 1, mention_count: 48, source_count: 6, is_profile: true },
+    { id: 'node_2', label: 'Indian Air Force', entity_type: 'ORGANISATION', primary_ring: 1, mention_count: 32, source_count: 5, is_profile: true },
+    { id: 'node_3', label: 'DRDO', entity_type: 'ORGANISATION', primary_ring: 1, mention_count: 28, source_count: 4, is_profile: true },
+    { id: 'node_4', label: 'General Upendra Dwivedi', entity_type: 'PERSON', primary_ring: 1, mention_count: 14, source_count: 4, is_profile: true },
+    { id: 'node_5', label: 'Eastern Ladakh', entity_type: 'LOCATION', primary_ring: 1, mention_count: 65, source_count: 7, is_profile: true },
+    { id: 'node_6', label: 'Line of Actual Control', entity_type: 'LOCATION', primary_ring: 1, mention_count: 78, source_count: 7, is_profile: true },
+    { id: 'node_7', label: 'PLA Ground Force', entity_type: 'ORGANISATION', primary_ring: 2, mention_count: 52, source_count: 5, is_profile: true },
+    { id: 'node_8', label: 'Western Theater Command', entity_type: 'ORGANISATION', primary_ring: 2, mention_count: 29, source_count: 4, is_profile: true },
+    { id: 'node_9', label: 'Rawalpindi GHQ', entity_type: 'ORGANISATION', primary_ring: 2, mention_count: 24, source_count: 3, is_profile: true },
+    { id: 'node_10', label: 'Depsang Plains', entity_type: 'LOCATION', primary_ring: 1, mention_count: 38, source_count: 5, is_profile: true },
+    { id: 'node_11', label: 'Demchok', entity_type: 'LOCATION', primary_ring: 1, mention_count: 35, source_count: 5, is_profile: true },
+    { id: 'node_12', label: 'Rafale', entity_type: 'EQUIPMENT', primary_ring: 4, mention_count: 18, source_count: 3, is_profile: false },
+    { id: 'node_13', label: 'S-400 Triumf', entity_type: 'EQUIPMENT', primary_ring: 4, mention_count: 15, source_count: 3, is_profile: false },
+  ],
+  edges: [
+    { id: 'edge_1', source: 'node_1', target: 'node_5', link_type: 'LOCATED_IN', confidence: 0.95 },
+    { id: 'edge_2', source: 'node_1', target: 'node_6', link_type: 'INVOLVES', confidence: 0.98 },
+    { id: 'edge_3', source: 'node_7', target: 'node_6', link_type: 'INVOLVES', confidence: 0.98 },
+    { id: 'edge_4', source: 'node_8', target: 'node_7', link_type: 'PART_OF_EVENT', confidence: 0.92 },
+    { id: 'edge_5', source: 'node_5', target: 'node_10', link_type: 'LOCATED_IN', confidence: 0.90 },
+    { id: 'edge_6', source: 'node_5', target: 'node_11', link_type: 'LOCATED_IN', confidence: 0.90 },
+    { id: 'edge_7', source: 'node_4', target: 'node_1', link_type: 'ASSOCIATED_WITH', confidence: 0.99 },
+    { id: 'edge_8', source: 'node_2', target: 'node_12', link_type: 'EQUIPPED_WITH', confidence: 0.94 },
+    { id: 'edge_9', source: 'node_3', target: 'node_1', link_type: 'ASSOCIATED_WITH', confidence: 0.88 },
+    { id: 'edge_10', source: 'node_9', target: 'node_6', link_type: 'INVOLVES', confidence: 0.85 },
+  ],
+};
+

@@ -36,14 +36,19 @@ def list_sources(db=Depends(get_db)):
 
 @router.get("/health")
 def sources_health(db=Depends(get_db)):
-    """Per-source freshness from the source_health table."""
+    """Per-source freshness across all registered monitoring outlets."""
     rows = db.execute(
         text("""
-            SELECT sh.source_id, s.name, s.ring, sh.last_fetched, sh.last_success,
-                   sh.article_count, sh.status
-            FROM source_health sh
-            JOIN sources s ON s.id = sh.source_id
-            ORDER BY sh.status DESC, sh.last_fetched ASC
+            SELECT s.id AS source_id, s.name, s.ring, s.language, s.country,
+                   COALESCE(sh.last_fetched, s.last_scraped_at) AS last_fetched,
+                   COALESCE(sh.last_success, s.last_scraped_at) AS last_success,
+                   COALESCE(sh.article_count, COUNT(a.id)) AS article_count,
+                   COALESCE(sh.status, CASE WHEN s.is_active THEN 'operational' ELSE 'inactive' END) AS status
+            FROM sources s
+            LEFT JOIN source_health sh ON sh.source_id = s.id
+            LEFT JOIN articles a ON a.source_id = s.id
+            GROUP BY s.id, s.name, s.ring, s.language, s.country, sh.last_fetched, sh.last_success, sh.article_count, sh.status
+            ORDER BY s.ring ASC, s.name ASC
         """)
     ).fetchall()
     return [dict(r._mapping) for r in rows]

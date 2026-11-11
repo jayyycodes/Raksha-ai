@@ -85,7 +85,7 @@ export default async function ProfileDetailPage({ params }: { params: { id: stri
               Attributed Facts & Claims ({facts.length})
             </h2>
             <span className="text-[10px] text-text-muted uppercase tracking-wider font-bold">
-              Provenance Verified
+              Attributed Provenance
             </span>
           </div>
 
@@ -121,7 +121,7 @@ export default async function ProfileDetailPage({ params }: { params: { id: stri
               ))
             ) : (
               <div className="p-6 text-center text-xs text-text-muted">
-                No verified profile statements logged yet.
+                No attributed profile statements logged yet.
               </div>
             )}
           </div>

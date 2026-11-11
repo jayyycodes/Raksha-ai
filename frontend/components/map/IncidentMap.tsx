@@ -35,9 +35,9 @@ export const IncidentMap: React.FC<IncidentMapProps> = ({ incidents }) => {
       });
       mapInstance = map;
 
-      // Cartographic CartoDB Positron tiles (neutral, Palantir-style analyst base)
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      // OpenStreetMap public cartographic tiles (free, no API key required)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 18,
       }).addTo(map);
 

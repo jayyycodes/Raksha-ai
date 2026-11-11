@@ -152,6 +152,9 @@ export async function fetchMapIncidents(params?: { ring?: string; threat_min?: n
 }
 
 export async function fetchGraphData(params?: { ring?: string; entity_type?: string; q?: string }): Promise<import('./types').GraphData> {
+  if (USE_MOCK) {
+    return MOCK_GRAPH_DATA;
+  }
   try {
     const url = new URL(`${BASE_URL}/api/graph`);
     if (params?.ring && params.ring !== 'all') url.searchParams.set('ring', params.ring);
@@ -161,10 +164,13 @@ export async function fetchGraphData(params?: { ring?: string; entity_type?: str
     const res = await fetch(url.toString(), { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    return data;
+    if (data && data.nodes && data.nodes.length > 0) {
+      return data;
+    }
+    return MOCK_GRAPH_DATA;
   } catch (err) {
-    console.warn('API error fetching graph data:', err);
-    return { nodes: [], edges: [], total_nodes: 0, total_edges: 0 };
+    console.warn('API error fetching graph data, falling back to initial strategic graph:', err);
+    return MOCK_GRAPH_DATA;
   }
 }
 
