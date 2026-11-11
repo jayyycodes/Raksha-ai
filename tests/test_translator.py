@@ -16,9 +16,37 @@ Uses the exact public signature: translate(text, source_lang, target_lang="en")
 Runs with both `python -m unittest tests/test_translator.py` and `pytest tests/test_translator.py`.
 """
 import concurrent.futures
+import contextlib
+import sys
 import threading
 import unittest
 from unittest.mock import MagicMock, patch
+
+_ORIGINAL_TORCH = sys.modules.get("torch", "__ABSENT__")
+
+
+def _build_test_torch_mock():
+    mock_t = MagicMock()
+    mock_t.no_grad = contextlib.nullcontext
+    mock_t.Tensor = type("Tensor", (), {})
+    return mock_t
+
+
+def setUpModule():
+    """Scoped injection of mock torch only when running in environments without torch."""
+    if "torch" not in sys.modules:
+        try:
+            import torch
+        except ImportError:
+            sys.modules["torch"] = _build_test_torch_mock()
+
+
+def tearDownModule():
+    """Strictly restore sys.modules after tests conclude to prevent test contamination."""
+    if _ORIGINAL_TORCH == "__ABSENT__":
+        sys.modules.pop("torch", None)
+    else:
+        sys.modules["torch"] = _ORIGINAL_TORCH
 
 from engine.translator import (
     DependencyError,
