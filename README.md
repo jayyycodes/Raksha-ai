@@ -9,7 +9,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Next.js-Frontend-000000?style=flat&logo=next.js&logoColor=white)](https://nextjs.org)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat&logo=docker&logoColor=white)](https://docker.com)
-[![Stage](https://img.shields.io/badge/Stage-1%20MVP%20Complete%20%7C%20Entering%20Stage%202%20Mid-brightgreen?style=flat)]()
+[![Stage](https://img.shields.io/badge/Stage-2%20Mid%20Complete%20%7C%20Entering%20Stage%203%20Solid-brightgreen?style=flat)]()
 
 *Collects public news in several languages · Builds a connected graph of events, people and organisations · Keeps an attributed profile for every named entity · Writes a daily Situation Report where every claim cites its source*
 
@@ -269,15 +269,15 @@ Three stages over about six months. Adjust to the college calendar. Tick the box
 
 #### Ary
 
-- [ ] NER (spaCy): locations, organisations, equipment, persons; write `entity_nodes` and `entity_links`
-- [ ] **Entity Resolution agent**: alias table, fuzzy and transliteration-aware matching, context and embedding scoring
+- [x] NER (spaCy): locations, organisations, equipment, persons; write `entity_nodes` and `entity_links`
+- [x] **Entity Resolution agent**: alias table, fuzzy and transliteration-aware matching, context and embedding scoring
   - Strong evidence links automatically
   - Medium evidence goes to the review queue
   - Weak evidence (name only) is never merged
-- [ ] Candidate-to-profile rule: an entity becomes a profile after at least 3 articles from at least 2 sources, or when an analyst promotes it
-- [ ] Embeddings into pgvector and semantic similarity search
-- [ ] **Event Threading agent**: entities plus cosine similarity plus event type and region, within a 6-month window; store shared entities, score and method for every link
-- [ ] Evaluate threading (target above 75%) and automatic merges (target at least 90% precision) on the labelled sets
+- [x] Candidate-to-profile rule: an entity becomes a profile after at least 3 articles from at least 2 sources, or when an analyst promotes it
+- [x] Embeddings into pgvector and semantic similarity search
+- [x] **Event Threading agent**: entities plus cosine similarity plus event type and region, within a 6-month window; store shared entities, score and method for every link
+- [x] Evaluate threading (target above 75%) and automatic merges (target at least 90% precision) on the labelled sets
 
 #### Jaish
 
@@ -291,14 +291,14 @@ Three stages over about six months. Adjust to the college calendar. Tick the box
 
 #### Mid exit criteria
 
-- [ ] Event threading above 75% accuracy on reviewed pairs, each link with a stored explanation
-- [ ] Automatic merges at high precision (target at least 90%); weak matches never merged
-- [ ] Profiles show aliases, timeline, map and associates, and every statement shows its source and status
-- [ ] Entity graph shows linked events, organisations and locations with evidence
-- [ ] Threat scores update after each scrape cycle
-- [ ] SitRep generated every morning with citations
-- [ ] Search and watchlists work; alerts fire
-- [ ] 40+ sources running
+- [x] Event threading above 75% accuracy on reviewed pairs, each link with a stored explanation
+- [x] Automatic merges at high precision (target at least 90%); weak matches never merged
+- [x] Profiles show aliases, timeline, map and associates, and every statement shows its source and status
+- [x] Entity graph shows linked events, organisations and locations with evidence
+- [x] Threat scores update after each scrape cycle
+- [x] SitRep generated every morning with citations
+- [x] Search and watchlists work; alerts fire
+- [x] 40+ sources running
 
 ---
 
