@@ -31,3 +31,4 @@ Alerts feed directly into the `alerts` database table and carry:
 - `method`: `statistical_baseline_deviation_v2`
 - `deviation_factor`: Numeric multiplier relative to daily average.
 - `provenance`: Complete source article IDs and timestamp.
+

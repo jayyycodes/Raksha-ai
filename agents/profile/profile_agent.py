@@ -189,3 +189,4 @@ class ProfileSummaryAgent(BaseAgent[ProfileSummaryIn, ProfileSummaryOut]):
             entity_type=input_data.entity_type,
             articles=input_data.associated_articles,
         )
+

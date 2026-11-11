@@ -1,4 +1,4 @@
-﻿"""
+"""
 Corroboration Agent Package.
 Owner: Jaish
 Stage: 2 (Mid)

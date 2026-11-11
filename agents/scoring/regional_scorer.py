@@ -280,3 +280,4 @@ class ThreatScoringAgent(BaseAgent[RegionalThreatScoreIn, RegionalThreatScoreOut
             logger.debug(f"DB query skipped or failed in regional scoring: {e}")
 
         return self.calculate_score_for_articles(region=input_data.region, articles=articles)
+

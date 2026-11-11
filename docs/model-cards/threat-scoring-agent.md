@@ -33,3 +33,4 @@ Every regional score emitted stores:
 - `model_version`: `threat_scoring_agent:0.2.0`
 - `article_count`: Number of articles contributing to the assessment.
 - `top_events`: Leading event types driving the score.
+

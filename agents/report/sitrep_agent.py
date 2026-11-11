@@ -264,3 +264,4 @@ class GroundedSitRepAgent(BaseAgent[SitRepIn, SitRepOut]):
 
     def run(self, input_data: SitRepIn) -> SitRepOut:
         return self.generate_report(report_date=input_data.report_date)
+

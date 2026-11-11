@@ -1,4 +1,4 @@
-﻿"""
+"""
 Scoring and Anomaly Agents Module.
 Owner: Jaish
 Stage: 2 (Mid)

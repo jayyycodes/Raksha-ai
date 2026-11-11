@@ -24,3 +24,4 @@ The **Profile Summary Agent** compiles attributed intelligence dossiers for name
 3. **Attribution & Claim Status:**
    - Statements are explicitly tagged with `claim_status`: `official_designation`, `analyst_verified`, or `reported`.
    - No subjective labels (such as "terrorist" or "criminal") are generated autonomously.
+

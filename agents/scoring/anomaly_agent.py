@@ -126,3 +126,4 @@ class AnomalyAgent(BaseAgent[AnomalyCheckIn, AnomalyCheckOut]):
             current_articles=[],
             baseline_daily_average=2.0,
         )
+

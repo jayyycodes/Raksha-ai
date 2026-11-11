@@ -26,3 +26,4 @@ The **Grounded Daily SitRep Agent** generates daily morning strategic intelligen
 4. **Dual Engine Execution:**
    - Primary: Groq Llama 3 (`llama-3.3-70b-versatile` configured via `settings.GROQ_MODEL`).
    - Fallback: Deterministic intelligence synthesis ensuring 100% operational availability during network outages or API exhaustion.
+
