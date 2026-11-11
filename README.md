@@ -281,13 +281,13 @@ Three stages over about six months. Adjust to the college calendar. Tick the box
 
 #### Jaish
 
-- [ ] **Threat Scoring agent**: regional 1 to 10 score with rising, stable or falling trend
-- [ ] **Anomaly agent**: compare recent activity with a longer baseline, per region and keyword
-- [ ] **Report agent**: grounded daily SitRep with Groq Llama 3; a citation for every sentence; model name kept in config; unsupported sentences flagged
-- [ ] **Profile Summary agent**: attributed statements with `claim_status` (reported, official designation, analyst verified); source-cited summary
-- [ ] **Sensitive-attribute filter**: never infer or store religion, caste, ethnicity, health or similar for a person
-- [ ] **Corroboration agent**: `CORROBORATED_BY` and `CONTRADICTS` links between sources
-- [ ] Measure report grounding rate (share of sentences supported by cited sources)
+- [x] **Threat Scoring agent**: regional 1 to 10 score with rising, stable or falling trend
+- [x] **Anomaly agent**: compare recent activity with a longer baseline, per region and keyword
+- [x] **Report agent**: grounded daily SitRep with Groq Llama 3; a citation for every sentence; model name kept in config; unsupported sentences flagged
+- [x] **Profile Summary agent**: attributed statements with `claim_status` (reported, official designation, analyst verified); source-cited summary
+- [x] **Sensitive-attribute filter**: never infer or store religion, caste, ethnicity, health or similar for a person
+- [x] **Corroboration agent**: `CORROBORATED_BY` and `CONTRADICTS` links between sources
+- [x] Measure report grounding rate (share of sentences supported by cited sources)
 
 #### Mid exit criteria
 

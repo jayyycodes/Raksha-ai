@@ -1,0 +1,6 @@
+{"id": 1, "text": "Artillery shelling was reported across Poonch sector forward outposts [Source #101].", "citations": [101], "valid_ids": [101, 102], "expected_supported": true}
+{"id": 2, "text": "Diplomatic emissaries held boundary consultation talks in Beijing [Source #102].", "citations": [102], "valid_ids": [101, 102], "expected_supported": true}
+{"id": 3, "text": "Speculative unverified rumors suggest foreign submarine deployment near southern tip.", "citations": [], "valid_ids": [101, 102], "expected_supported": false}
+{"id": 4, "text": "Troops neutralized two armed infiltrators along the Line of Control [Source #101].", "citations": [101], "valid_ids": [101, 102], "expected_supported": true}
+{"id": 5, "text": "Unverified claims of missile test failure circulated by non-credible blog [Source #999].", "citations": [999], "valid_ids": [101, 102], "expected_supported": false}
+

@@ -8,6 +8,19 @@ RING_ADVERSARY = 2
 RING_REGIONAL  = 3
 RING_GLOBAL    = 4
 
+# Strategic Defence Regions
+DEFENCE_REGIONS = [
+    "LAC-Ladakh",
+    "LAC-Arunachal",
+    "LoC-Kashmir",
+    "Western-Border",
+    "Indian-Ocean",
+    "Northeast",
+    "Internal-Security",
+    "Cyber",
+    "Global-Strategic",
+]
+
 # Event Types
 EVENT_TYPES = [
     "border_incident", "cyber_attack", "terror_activity",
