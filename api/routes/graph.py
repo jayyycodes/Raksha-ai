@@ -41,14 +41,24 @@ INITIAL_STRATEGIC_LINKS = [
     ("Eastern Ladakh", "Depsang Plains", "LOCATED_IN", 0.90),
     ("Eastern Ladakh", "Demchok", "LOCATED_IN", 0.90),
     ("General Upendra Dwivedi", "Indian Army", "ASSOCIATED_WITH", 0.99),
+    ("General Upendra Dwivedi", "COAS", "TITLE_OF", 0.99),
     ("Indian Air Force", "Rafale", "EQUIPPED_WITH", 0.94),
+    ("Indian Air Force", "S-400 Triumf", "EQUIPPED_WITH", 0.98),
+    ("Indian Air Force", "IAF", "ALIAS_OF", 0.99),
     ("DRDO", "Indian Army", "ASSOCIATED_WITH", 0.88),
-    ("Rawalpindi GHQ", "Line of Control", "INVOLVES", 0.85),
+    ("Western Theater Command", "WTC", "ALIAS_OF", 0.99),
+    ("Rawalpindi GHQ", "Pakistan Air Force", "COMMANDS", 0.92),
+    ("Pakistan Air Force", "PAF", "ALIAS_OF", 0.99),
+    ("Rawalpindi GHQ", "Jaish-e-Mohammed", "INVOLVES", 0.85),
+    ("Jaish-e-Mohammed", "JeM", "ALIAS_OF", 0.99),
+    ("Rawalpindi GHQ", "Lashkar-e-Taiba", "INVOLVES", 0.86),
+    ("Lashkar-e-Taiba", "LeT", "ALIAS_OF", 0.99),
+    ("PLA Ground Force", "Western Theater Command", "REPORTS_TO", 0.95),
 ]
 
 
 def _ensure_seed_graph_if_empty(db):
-    """Seed key strategic entities if table is empty for instant analyst visualization."""
+    """Seed key strategic entities and ensure all inter-entity links are present."""
     count = db.execute(text("SELECT COUNT(*) FROM entity_nodes")).scalar()
     if count == 0:
         for ent in INITIAL_STRATEGIC_ENTITIES:
@@ -60,30 +70,34 @@ def _ensure_seed_graph_if_empty(db):
                 """),
                 ent,
             )
-        
-        # Link them
-        for src_name, tgt_name, ltype, conf in INITIAL_STRATEGIC_LINKS:
-            db.execute(
-                text("""
-                    INSERT INTO entity_links (source_node_id, target_node_id, link_type, confidence)
-                    SELECT s.id, t.id, :ltype, :conf
-                    FROM entity_nodes s, entity_nodes t
-                    WHERE s.name = :src AND t.name = :tgt
-                    ON CONFLICT DO NOTHING
-                """),
-                {"src": src_name, "tgt": tgt_name, "ltype": ltype, "conf": conf},
-            )
-    else:
-        # Enrich aliases for existing nodes if empty
-        for ent in INITIAL_STRATEGIC_ENTITIES:
-            db.execute(
-                text("""
-                    UPDATE entity_nodes
-                    SET aliases = :aliases
-                    WHERE name = :name AND (aliases IS NULL OR array_length(aliases, 1) IS NULL)
-                """),
-                {"name": ent["name"], "aliases": ent["aliases"]},
-            )
+
+    # Always ensure strategic links exist so the knowledge graph is richly connected
+    for src_name, tgt_name, ltype, conf in INITIAL_STRATEGIC_LINKS:
+        db.execute(
+            text("""
+                INSERT INTO entity_links (source_node_id, target_node_id, link_type, confidence)
+                SELECT s.id, t.id, :ltype, :conf
+                FROM entity_nodes s, entity_nodes t
+                WHERE s.name = :src AND t.name = :tgt
+                  AND NOT EXISTS (
+                      SELECT 1 FROM entity_links el
+                      WHERE el.source_node_id = s.id AND el.target_node_id = t.id AND el.link_type = :ltype
+                  )
+            """),
+            {"src": src_name, "tgt": tgt_name, "ltype": ltype, "conf": conf},
+        )
+    
+    # Enrich aliases for existing nodes if empty
+    for ent in INITIAL_STRATEGIC_ENTITIES:
+        db.execute(
+            text("""
+                UPDATE entity_nodes
+                SET aliases = :aliases
+                WHERE name = :name AND (aliases IS NULL OR array_length(aliases, 1) IS NULL)
+            """),
+            {"name": ent["name"], "aliases": ent["aliases"]},
+        )
+    db.commit()
 
 
 @router.get("", response_model=GraphResponse)

@@ -1,6 +1,6 @@
 import { Article, ArticleFilterParams, ArticleListResponse, SourceHealth, SystemStats } from './types';
 import { adaptArticle, adaptSourceHealth, adaptStats } from './adapters';
-import { MOCK_ARTICLES, MOCK_SOURCES_HEALTH, MOCK_STATS } from './mock-data';
+import { MOCK_ARTICLES, MOCK_SOURCES_HEALTH, MOCK_STATS, MOCK_GRAPH_DATA } from './mock-data';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === 'true';
