@@ -2,9 +2,11 @@
 GET /api/profiles — Entity Profiles (Object Views)
 Owner: Jay (Lead & Platform) | Stage: 2 (Mid)
 """
+import json
 from typing import Optional, List
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import text
 from common.db import get_db as _get_db
 from common.schemas.provenance import ClaimStatus
@@ -408,4 +410,247 @@ def get_profile_detail(profile_id: int, db=Depends(get_db)):
         associates=associates,
         locations=locations,
     )
+
+
+class ProfileMergeIn(BaseModel):
+    source_node_id: int
+    analyst_name: str = "analyst"
+    reason: Optional[str] = "Analyst confirmed canonical alias merge"
+
+
+class ProfileSplitIn(BaseModel):
+    alias_to_split: str = Field(..., min_length=1)
+    analyst_name: str = "analyst"
+    reason: Optional[str] = "Analyst split mislinked entity alias"
+
+
+class ProfileNoteIn(BaseModel):
+    note: str = Field(..., min_length=1, max_length=2000)
+    analyst_name: str = "analyst"
+
+
+@router.get("/{profile_id}/timeline", response_model=List[ProfileTimelineEvent])
+def get_profile_timeline(profile_id: int, db=Depends(get_db)):
+    """Dated activities timeline for an entity profile with source and event details."""
+    detail = get_profile_detail(profile_id, db=db)
+    return detail.timeline
+
+
+@router.post("/{profile_id}/merge")
+def merge_profile_entities(profile_id: int, payload: ProfileMergeIn, db=Depends(get_db)):
+    """Merge `source_node_id` into canonical `profile_id` cleanly (logged and reversible)."""
+    if payload.source_node_id == profile_id:
+        raise HTTPException(status_code=400, detail="Cannot merge a profile into itself")
+
+    target = db.execute(
+        text("SELECT id, name, aliases, mention_count FROM entity_nodes WHERE id = :id"),
+        {"id": profile_id},
+    ).fetchone()
+    source = db.execute(
+        text("SELECT id, name, aliases, mention_count FROM entity_nodes WHERE id = :id"),
+        {"id": payload.source_node_id},
+    ).fetchone()
+
+    if not target or not source:
+        raise HTTPException(status_code=404, detail="Target or source entity not found")
+
+    merged_aliases = list(dict.fromkeys(list(target.aliases or []) + [source.name] + list(source.aliases or [])))
+    new_mentions = int(target.mention_count or 0) + int(source.mention_count or 0)
+
+    db.execute(
+        text("""
+            UPDATE entity_nodes
+            SET aliases = :aliases, mention_count = :mentions, is_profile = TRUE, last_seen_at = NOW()
+            WHERE id = :tid
+        """),
+        {"aliases": merged_aliases, "mentions": new_mentions, "tid": profile_id},
+    )
+
+    # Redirect links where source was referenced (avoiding self-loops)
+    db.execute(
+        text("""
+            UPDATE entity_links
+            SET source_node_id = :tid
+            WHERE source_node_id = :sid AND target_node_id != :tid
+        """),
+        {"tid": profile_id, "sid": payload.source_node_id},
+    )
+    db.execute(
+        text("""
+            UPDATE entity_links
+            SET target_node_id = :tid
+            WHERE target_node_id = :sid AND source_node_id != :tid
+        """),
+        {"tid": profile_id, "sid": payload.source_node_id},
+    )
+
+    # Record merge history inside merge_suggestions
+    db.execute(
+        text("""
+            INSERT INTO merge_suggestions (
+                source_node_id, target_node_id, similarity_score, reason, status, reviewed_by, reviewed_at
+            ) VALUES (
+                :sid, :tid, 1.0, :reason, 'accepted', :analyst, NOW()
+            )
+            ON CONFLICT (source_node_id, target_node_id) DO UPDATE SET
+                status = 'accepted',
+                reason = EXCLUDED.reason,
+                reviewed_by = EXCLUDED.reviewed_by,
+                reviewed_at = NOW()
+        """),
+        {
+            "sid": payload.source_node_id,
+            "tid": profile_id,
+            "reason": payload.reason or "Manual analyst merge",
+            "analyst": payload.analyst_name,
+        },
+    )
+
+    return {
+        "merged": True,
+        "target_profile_id": profile_id,
+        "source_node_id": payload.source_node_id,
+        "aliases": merged_aliases,
+        "reviewed_by": payload.analyst_name,
+    }
+
+
+@router.post("/{profile_id}/split")
+def split_profile_entity(profile_id: int, payload: ProfileSplitIn, db=Depends(get_db)):
+    """Undo/split a previously merged alias back into a separate candidate entity."""
+    target = db.execute(
+        text("SELECT id, name, entity_type, primary_ring, aliases FROM entity_nodes WHERE id = :id"),
+        {"id": profile_id},
+    ).fetchone()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target profile not found")
+
+    alias_clean = payload.alias_to_split.strip()
+    if alias_clean.lower() == target.name.lower():
+        raise HTTPException(status_code=400, detail="Cannot split the canonical entity name from itself")
+
+    remaining_aliases = [a for a in (target.aliases or []) if a.lower() != alias_clean.lower()]
+    db.execute(
+        text("UPDATE entity_nodes SET aliases = :aliases, last_seen_at = NOW() WHERE id = :id"),
+        {"aliases": remaining_aliases, "id": profile_id},
+    )
+
+    # Ensure separate candidate node exists or reactivate prior merge suggestion
+    new_node = db.execute(
+        text("""
+            INSERT INTO entity_nodes (name, entity_type, aliases, primary_ring, mention_count, source_count, is_profile)
+            VALUES (:name, :etype, :aliases, :ring, 1, 1, FALSE)
+            ON CONFLICT (name, entity_type) DO UPDATE SET last_seen_at = NOW()
+            RETURNING id
+        """),
+        {
+            "name": alias_clean,
+            "etype": target.entity_type,
+            "aliases": [alias_clean],
+            "ring": target.primary_ring,
+        },
+    ).fetchone()
+
+    db.execute(
+        text("""
+            UPDATE merge_suggestions
+            SET status = 'rejected',
+                reason = CONCAT(reason, ' | Split by ', CAST(:analyst AS TEXT)),
+                reviewed_by = :analyst,
+                reviewed_at = NOW()
+            WHERE source_node_id = :sid AND target_node_id = :tid
+        """),
+        {"analyst": payload.analyst_name, "sid": new_node.id, "tid": profile_id},
+    )
+
+    return {
+        "split": True,
+        "original_profile_id": profile_id,
+        "new_candidate_id": new_node.id,
+        "split_alias": alias_clean,
+        "remaining_aliases": remaining_aliases,
+    }
+
+
+@router.get("/{profile_id}/notes")
+def list_profile_notes(profile_id: int, db=Depends(get_db)):
+    """Fetch analyst notes stored on this entity profile."""
+    row = db.execute(
+        text("SELECT metadata FROM entity_nodes WHERE id = :id"),
+        {"id": profile_id},
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    meta = row.metadata or {}
+    return {"profile_id": profile_id, "notes": meta.get("analyst_notes", [])}
+
+
+@router.post("/{profile_id}/notes")
+def add_profile_note(profile_id: int, payload: ProfileNoteIn, db=Depends(get_db)):
+    """Append a timestamped analyst note to the entity profile."""
+    row = db.execute(
+        text("SELECT metadata FROM entity_nodes WHERE id = :id"),
+        {"id": profile_id},
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    meta = dict(row.metadata or {})
+    notes = list(meta.get("analyst_notes", []))
+    new_entry = {
+        "note": payload.note.strip(),
+        "analyst": payload.analyst_name,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    notes.insert(0, new_entry)
+    meta["analyst_notes"] = notes[:50]
+
+    db.execute(
+        text("UPDATE entity_nodes SET metadata = CAST(:meta AS jsonb) WHERE id = :id"),
+        {"meta": json.dumps(meta), "id": profile_id},
+    )
+    return {"profile_id": profile_id, "note": new_entry, "notes": meta["analyst_notes"]}
+
+
+entities_router = APIRouter(prefix="/entities", tags=["Entities"])
+
+
+@entities_router.get("/{entity_id}")
+def get_entity_detail(entity_id: int, db=Depends(get_db)):
+    """Entity detail with profile object, linked articles, and ongoing events (Section 10 contract)."""
+    detail = get_profile_detail(entity_id, db=db)
+    art_ids = [t.article_id for t in detail.timeline]
+    linked_events = []
+    if art_ids:
+        ev_rows = db.execute(
+            text("""
+                SELECT DISTINCT e.id, e.title, e.region, e.event_type, e.threat_level, e.status
+                FROM event_articles ea
+                JOIN events e ON e.id = ea.event_id
+                WHERE ea.article_id = ANY(:aids)
+                ORDER BY e.threat_level DESC
+                LIMIT 10
+            """),
+            {"aids": art_ids},
+        ).fetchall()
+        linked_events = [
+            {
+                "id": r.id,
+                "title": r.title,
+                "region": r.region,
+                "event_type": r.event_type,
+                "threat_level": r.threat_level,
+                "status": r.status,
+            }
+            for r in ev_rows
+        ]
+    return {
+        "entity": detail.header,
+        "facts": detail.facts,
+        "associates": detail.associates,
+        "timeline": detail.timeline,
+        "locations": detail.locations,
+        "events": linked_events,
+    }
+
 

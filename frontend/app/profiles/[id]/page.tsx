@@ -5,6 +5,7 @@ import { fetchProfileById } from '@/lib/api/client';
 import { RingMarker } from '@/components/shared/RingMarker';
 import { ThreatLevel } from '@/components/shared/ThreatLevel';
 import { EventTypeTag } from '@/components/shared/EventTypeTag';
+import { ProfileInteractiveExtras } from '@/components/profiles/ProfileInteractiveExtras';
 import { formatISTDate } from '@/lib/utils';
 
 export default async function ProfileDetailPage({ params }: { params: { id: string } }) {
@@ -14,7 +15,7 @@ export default async function ProfileDetailPage({ params }: { params: { id: stri
   const data = await fetchProfileById(profileId);
   if (!data) notFound();
 
-  const { header, facts, timeline, associates } = data;
+  const { header, facts, timeline, associates, locations } = data;
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -162,6 +163,15 @@ export default async function ProfileDetailPage({ params }: { params: { id: stri
           </div>
         </div>
       </div>
+
+      {/* Interactive Lineage, Watchlist, Locations Mini-Map & Analyst Notes */}
+      <ProfileInteractiveExtras
+        profileId={profileId}
+        entityName={header.name}
+        mentionCount={header.mention_count}
+        sourceCount={header.source_count}
+        locations={locations || []}
+      />
 
       {/* Chronological Timeline */}
       <div className="space-y-3">

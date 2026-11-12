@@ -187,3 +187,8 @@ def take_review_action(
         created_at=row.created_at or now,
     )
 
+
+merge_suggestions_router = APIRouter(prefix="/merge-suggestions", tags=["Review Queue"])
+merge_suggestions_router.add_api_route("", get_review_queue, methods=["GET"], response_model=ReviewQueueResponse)
+merge_suggestions_router.add_api_route("/{suggestion_id}/action", take_review_action, methods=["POST"], response_model=MergeSuggestionOut)
+

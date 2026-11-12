@@ -136,24 +136,28 @@ def _generate_grounded_sitrep_from_articles(db) -> Dict[str, Any]:
 @router.get("/latest")
 @router.get("/today")
 def get_latest_sitrep(db=Depends(get_db)):
-    """Retrieve today's grounded Situation Report with verifiable source citations."""
-    today_str = date.today().isoformat()
+    """Retrieve today's grounded Situation Report with attributed source citations."""
     row = db.execute(
         text("SELECT * FROM sitreps WHERE report_date = :today"),
         {"today": date.today()},
     ).fetchone()
 
-    if row and row.content:
+    generated = _generate_grounded_sitrep_from_articles(db)
+    if row and row.content and (row.article_count or 0) > 0:
+        citations_raw = getattr(row, "citations", None) or generated.get("citations", [])
+        # Normalize citations so frontend SitRep viewer always receives expected citation objects
+        norm_citations = citations_raw if (citations_raw and isinstance(citations_raw[0], dict) and "citation_id" in citations_raw[0]) else generated.get("citations", [])
         return {
             "report_date": str(row.report_date),
-            "executive_summary": row.content,
-            "top_threats": row.top_threats or [],
-            "article_count": row.article_count or 0,
+            "executive_summary": getattr(row, "executive_summary", None) or row.content,
+            "theatre_assessments": generated.get("theatre_assessments", []),
+            "top_threats": generated.get("top_threats", row.top_threats or []),
+            "article_count": max(row.article_count or 0, generated.get("article_count", 0)),
+            "citations": norm_citations,
             "generated_at": str(row.generated_at),
         }
 
-    # Dynamic fallback from live ingested articles
-    return _generate_grounded_sitrep_from_articles(db)
+    return generated
 
 
 @router.get("/{report_date}")
@@ -169,8 +173,15 @@ def get_sitrep_by_date(report_date: str, db=Depends(get_db)):
 
     return {
         "report_date": str(row.report_date),
-        "executive_summary": row.content,
+        "executive_summary": getattr(row, "executive_summary", None) or row.content,
+        "theatre_assessments": [],
         "top_threats": row.top_threats or [],
         "article_count": row.article_count or 0,
+        "citations": getattr(row, "citations", None) or [],
         "generated_at": str(row.generated_at),
     }
+
+
+singular_router = APIRouter(prefix="/sitrep", tags=["Situation Reports"])
+singular_router.add_api_route("/today", get_latest_sitrep, methods=["GET"])
+singular_router.add_api_route("/{report_date}", get_sitrep_by_date, methods=["GET"])

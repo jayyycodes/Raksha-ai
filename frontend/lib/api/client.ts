@@ -238,3 +238,176 @@ export async function fetchLatestSitRep(): Promise<import('./types').SitRepData 
   }
 }
 
+export async function fetchEvents(params?: { status?: string; region?: string; event_type?: string }): Promise<import('./types').EventListItem[]> {
+  try {
+    const url = new URL(`${BASE_URL}/api/events`);
+    if (params?.status && params.status !== 'all') url.searchParams.set('status', params.status);
+    if (params?.region && params.region !== 'all') url.searchParams.set('region', params.region);
+    if (params?.event_type && params.event_type !== 'all') url.searchParams.set('event_type', params.event_type);
+    const res = await fetch(url.toString(), { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.events || [];
+  } catch (err) {
+    console.warn('API error fetching events:', err);
+    return [];
+  }
+}
+
+export async function fetchEventById(id: number): Promise<import('./types').EventDetailData | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/events/${id}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn(`API error fetching event ${id}:`, err);
+    return null;
+  }
+}
+
+export async function fetchThreats(): Promise<import('./types').ThreatRegionScore[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/threats`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.regions || [];
+  } catch (err) {
+    console.warn('API error fetching threat scores:', err);
+    return [];
+  }
+}
+
+export async function fetchThreatHistory(region: string, days: number = 30): Promise<import('./types').ThreatHistoryPoint[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/threats/${encodeURIComponent(region)}?days=${days}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.history || [];
+  } catch (err) {
+    console.warn(`API error fetching history for ${region}:`, err);
+    return [];
+  }
+}
+
+export async function fetchAlerts(params?: { unread_only?: boolean; severity?: string }): Promise<{ alerts: import('./types').AlertItem[]; unread_count: number }> {
+  try {
+    const url = new URL(`${BASE_URL}/api/alerts`);
+    if (params?.unread_only) url.searchParams.set('unread_only', 'true');
+    if (params?.severity && params.severity !== 'all') url.searchParams.set('severity', params.severity);
+    const res = await fetch(url.toString(), { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return { alerts: data.alerts || [], unread_count: data.unread_count || 0 };
+  } catch (err) {
+    console.warn('API error fetching alerts:', err);
+    return { alerts: [], unread_count: 0 };
+  }
+}
+
+export async function markAlertRead(id: number): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/alerts/${id}/read`, { method: 'POST' });
+    return res.ok;
+  } catch (err) {
+    console.error('Error marking alert read:', err);
+    return false;
+  }
+}
+
+export async function triggerAnomalyScan(): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/alerts/scan`, { method: 'POST' });
+    return res.ok;
+  } catch (err) {
+    console.error('Error scanning anomalies:', err);
+    return false;
+  }
+}
+
+export async function fetchWatchlists(): Promise<import('./types').WatchlistItem[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/watchlists`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.watchlists || [];
+  } catch (err) {
+    console.warn('API error fetching watchlists:', err);
+    return [];
+  }
+}
+
+export async function createWatchlist(payload: { name: string; query_type: 'entity' | 'region' | 'keyword'; query_value: string }): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/watchlists`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Error creating watchlist:', err);
+    return false;
+  }
+}
+
+export async function toggleWatchlist(id: number, is_active: boolean): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/watchlists/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Error toggling watchlist:', err);
+    return false;
+  }
+}
+
+export async function deleteWatchlist(id: number): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/watchlists/${id}`, { method: 'DELETE' });
+    return res.ok;
+  } catch (err) {
+    console.error('Error deleting watchlist:', err);
+    return false;
+  }
+}
+
+export async function fetchUnifiedSearch(query: string): Promise<import('./types').UnifiedSearchResponse | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/search?q=${encodeURIComponent(query)}&limit=6`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Unified search error:', err);
+    return null;
+  }
+}
+
+export async function fetchProfileNotes(profileId: number): Promise<import('./types').ProfileNoteItem[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/profiles/${profileId}/notes`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.notes || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function addProfileNote(profileId: number, note: string): Promise<import('./types').ProfileNoteItem[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/profiles/${profileId}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note, analyst_name: 'lead_analyst' }),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.notes || [];
+  } catch {
+    return [];
+  }
+}
+

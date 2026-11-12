@@ -18,6 +18,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
   const isMapActive = pathname.startsWith('/map');
   const isGraphActive = pathname.startsWith('/graph');
   const isProfilesActive = pathname.startsWith('/profiles');
+  const isEventsActive = pathname.startsWith('/events');
+  const isThreatsActive = pathname.startsWith('/threats');
+  const isWatchlistsActive = pathname.startsWith('/watchlists');
   const isReviewActive = pathname.startsWith('/review');
   const isSitrepActive = pathname.startsWith('/sitrep');
 
@@ -129,6 +132,48 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
             >
               <span className="text-base">👤</span>
               <span>Entity Profiles</span>
+            </Link>
+
+            <Link
+              href="/events"
+              onClick={onNavigate}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-navy',
+                isEventsActive
+                  ? 'bg-subtle-fill text-primary-navy font-bold border-l-2 border-primary-navy'
+                  : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
+              )}
+            >
+              <span className="text-base">⏳</span>
+              <span>Event Timelines</span>
+            </Link>
+
+            <Link
+              href="/threats"
+              onClick={onNavigate}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-navy',
+                isThreatsActive
+                  ? 'bg-subtle-fill text-primary-navy font-bold border-l-2 border-primary-navy'
+                  : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
+              )}
+            >
+              <span className="text-base">📈</span>
+              <span>Threats & Alerts</span>
+            </Link>
+
+            <Link
+              href="/watchlists"
+              onClick={onNavigate}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-navy',
+                isWatchlistsActive
+                  ? 'bg-subtle-fill text-primary-navy font-bold border-l-2 border-primary-navy'
+                  : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
+              )}
+            >
+              <span className="text-base">🔔</span>
+              <span>Watchlists</span>
             </Link>
 
             <Link

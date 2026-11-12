@@ -209,3 +209,121 @@ export interface SitRepData {
   generated_at: string;
 }
 
+export interface EventListItem {
+  id: number;
+  title: string;
+  region: string;
+  event_type: string;
+  status: string;
+  threat_level: number;
+  first_seen_at: string;
+  last_updated_at: string;
+  article_count: number;
+  summary: string;
+}
+
+export interface EventTimelineArticle {
+  article_id: number;
+  title: string;
+  url: string;
+  published_at: string;
+  source_name: string;
+  ring: RingId;
+  threat_level: number;
+  sentiment: string;
+  link_method: string;
+  confidence: number;
+  is_seed: boolean;
+  explanation: string;
+}
+
+export interface EventDetailData {
+  event: EventListItem;
+  timeline: EventTimelineArticle[];
+  entities: Array<{ entity_type: string; name: string; mentions: number; profile_id?: number | null }>;
+  threat_trajectory: Array<{ date: string; threat_level: number; title: string }>;
+}
+
+export interface ThreatRegionScore {
+  region: string;
+  score: number;
+  trend: 'rising' | 'stable' | 'falling' | string;
+  article_count: number;
+  calculated_at: string;
+}
+
+export interface ThreatHistoryPoint {
+  date: string;
+  score: number;
+  article_count: number;
+  trend: string;
+}
+
+export interface AlertItem {
+  id: number;
+  alert_type: string;
+  region: string;
+  description: string;
+  severity: 'low' | 'medium' | 'high' | 'critical' | string;
+  is_read: boolean;
+  triggered_at: string;
+  watchlist_id?: number | null;
+  source_article_ids: number[];
+}
+
+export interface WatchlistItem {
+  id: number;
+  name: string;
+  query_type: 'entity' | 'region' | 'keyword';
+  query_value: string;
+  is_active: boolean;
+  created_at: string;
+  alert_count: number;
+  last_triggered_at?: string | null;
+  recent_matches: Array<{
+    article_id: number;
+    title: string;
+    source_name: string;
+    published_at: string;
+  }>;
+}
+
+export interface UnifiedSearchResponse {
+  query: string;
+  total_matches: number;
+  articles: Array<{
+    id: number;
+    title: string;
+    url: string;
+    published_at: string;
+    source_name: string;
+    ring: RingId;
+    event_type: string;
+    threat_level: number;
+  }>;
+  entities: Array<{
+    id: number;
+    name: string;
+    entity_type: string;
+    primary_ring: RingId;
+    mention_count: number;
+    is_profile: boolean;
+  }>;
+  events: Array<{
+    id: number;
+    title: string;
+    region: string;
+    event_type: string;
+    status: string;
+    threat_level: number;
+    article_count: number;
+    last_updated_at: string;
+  }>;
+}
+
+export interface ProfileNoteItem {
+  note: string;
+  analyst: string;
+  created_at: string;
+}
+

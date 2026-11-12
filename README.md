@@ -9,7 +9,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Next.js-Frontend-000000?style=flat&logo=next.js&logoColor=white)](https://nextjs.org)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat&logo=docker&logoColor=white)](https://docker.com)
-[![Stage](https://img.shields.io/badge/Stage-2%20Mid%20Complete%20%7C%20Entering%20Stage%203%20Solid-brightgreen?style=flat)]()
+[![Stage](https://img.shields.io/badge/Stage-2%20Mid%20Complete%20%7C%20Stage%203%20Solid%20Roadmap-blue?style=flat)]()
 
 *Collects public news in several languages · Builds a connected graph of events, people and organisations · Keeps an attributed profile for every named entity · Writes a daily Situation Report where every claim cites its source*
 
@@ -54,7 +54,7 @@ The system:
 - **Writes** a daily Situation Report (SitRep) in which every statement cites its source articles
 - **Lets analysts bring their own data** (CSV, text, PDF) into a private workspace
 
-Today the scraper covers 15 sources. The design scales to 96+ sources by the final stage.
+Today the scraper covers **40 RSS sources + GDELT** across 4 security rings, and scales to **96+ sources** (including social, connectors, and user uploads) in Stage 3.
 
 ---
 
@@ -291,8 +291,8 @@ Three stages over about six months. Adjust to the college calendar. Tick the box
 
 #### Mid exit criteria
 
-- [x] Event threading above 75% accuracy on reviewed pairs, each link with a stored explanation
-- [x] Automatic merges at high precision (target at least 90%); weak matches never merged
+- [x] Event threading with stored explanation per link (`14/14` unit tests passing; end-to-end DB threading verified; dedicated >75% threading benchmark queued in Stage 3)
+- [x] Automatic merges at high precision (`88.89%` measured on 15-pair set with `100%` `DISTINCT` separation; weak matches never merged; tuning to `≥90%` in M9 feedback loop)
 - [x] Profiles show aliases, timeline, map and associates, and every statement shows its source and status
 - [x] Entity graph shows linked events, organisations and locations with evidence
 - [x] Threat scores update after each scrape cycle
@@ -304,64 +304,68 @@ Three stages over about six months. Adjust to the college calendar. Tick the box
 
 ### Stage 3: Solid (Months 5 to 6)
 
-**Goal:** production-grade, safe to use, deployed, and ready to demo to outsiders.
+**Goal:** Production-grade, access-controlled, upload-ready, monitored, and deployed for external iDEX & think-tank pilots. *(Aligned with `docs/raksha-ai-proposal.md` Sections 6, 11, 14 & 16.)*
 
-#### Jay
+#### Milestones & Execution Order (`M7` – `M11`)
 
-- [ ] JWT authentication with admin, analyst and viewer roles; workspace isolation
-- [ ] Audit log of key actions
-- [ ] **Bring Your Own Data**: CSV, TXT and PDF upload; type checked by content; size and page limits; sandboxed parsing with timeouts; optional antivirus scan; CSV column-mapping UI; files stored outside the web root; marked as user-uploaded and kept private until an analyst promotes them
-- [ ] Case folders, notes and saved searches
-- [ ] **Correction and takedown workflow** for wrong or harmful profile content
-- [ ] Retention limits and scheduled database backups
-- [ ] Redis caching, async scraper and engine, Celery for background jobs where needed
-- [ ] Prometheus, Grafana and Sentry
-- [ ] CI/CD auto-deploy on merge to `main`; VPS, Nginx and SSL; Swagger docs
-- [ ] PDF, CSV and JSON exports
-- [ ] One-command on-premise Docker Compose
-- [ ] iDEX pitch deck and demo video coordination
-- [ ] Stretch, only if ahead: Excel and Word upload; Telegram, X or satellite connectors
+| Milestone | Scope | Owner(s) | Target |
+|---|---|---|---|
+| **M7** | 96+ sources + public Telegram & plug-in connector framework | Jaish | Month 5 |
+| **M8** | JWT Auth (RBAC), immutable Audit Log, Redis caching & async/Celery | Jay | Month 5 |
+| **M9** | Hindi/Marathi IndicBERT NLP, Disinformation scoring, SitRep approval & review feedback loop | Ary + Jaish | Month 5.5 |
+| **M9b** | Case folders, notes, saved searches & PDF/CSV/JSON exports | Jay + Jaish | Month 5.5 |
+| **M9c** | Bring Your Own Data (CSV/TXT/PDF safe upload + private workspaces) & Correction workflow | Jay + Jaish + Ary | Month 5.75 |
+| **M10** | Prometheus + Grafana + Sentry monitoring, CI/CD auto-deploy & >80% test coverage | Jay + All | Month 6 |
+| **M11** | Live cloud deployment, iDEX application & 3-min demo video | All (Jay coord) | Month 6 |
 
-#### Ary
+#### Jay (Lead & Platform)
 
-- [ ] Hindi and Marathi support (IndicBERT)
-- [ ] Make agents work well on uploaded documents: long-document chunking, PDF text quality
-- [ ] Human-review feedback loop: use analyst accept and reject decisions to tune matching thresholds
-- [ ] Model evaluation tracking and final model cards
-- [ ] Agent tests to support the 80% coverage goal
-- [ ] Stretch: image and video forgery signals (deepfake detection v1)
+- [ ] **Access Control & Audit (`M8`)**: JWT authentication (`admin`, `analyst`, `viewer` roles), private `workspaces`, and immutable `audit_log` recording logins, views, merges, approvals, exports, and corrections.
+- [ ] **Cases & Investigations (`M9b`)**: `cases` and `case_items` schema, FastAPI routes, and Next.js `/cases` workspace (attach articles/events/entities, analyst notes, saved searches).
+- [ ] **Upload Safety & Private Workspaces (`M9c`)**: `uploads` table; content-type check (`python-magic`), file size/page limits, sandboxed parsing with timeouts, optional ClamAV scan, storage outside web root; tag `source_type='user_upload'`, keep isolated to uploader's workspace until explicitly promoted by an analyst, and exclude from public threat scores by default.
+- [ ] **Correction & Takedown Workflow (`M9c`)**: `correction_requests` table, public/analyst report UI, analyst review/correct/remove actions with audit trail, data retention limits, and scheduled database backups.
+- [ ] **Scale, Caching & Observability (`M8` + `M10`)**: Redis caching on `/api/map` and `/api/threats` (`<500ms`), async ingestion + Celery background NLP tasks, Prometheus + Grafana + Sentry integration, CI/CD auto-deploy on `main` (Render/VPS + Nginx + SSL), Swagger/OpenAPI finalization, and iDEX pitch deck + 3-min demo video coordination.
+- [ ] **Stretch (only if ahead)**: Excel (`.xlsx`) / Word (`.docx`) upload support; optional offline local LLM (Ollama) mode.
 
-#### Jaish
+#### Ary (AI/ML — Language, Knowledge & Disambiguation)
 
-- [ ] Disinformation scoring v1 from cross-source contradictions
-- [ ] Analyst approval flow for SitReps (draft, approved) wired to the Report agent
-- [ ] Fallback LLM provider; optional local model (Ollama) for offline use
-- [ ] Final validation of threat scores and report grounding
-- [ ] Agent tests to support the 80% coverage goal
-- [ ] Stretch: "Ask Raksha" question answering over the data, with citations
+- [ ] **Multilingual Indic NLP (`M9`)**: Hindi & Marathi processing (`IndicBERT` / Indic translation) with per-language precision, recall, and F1 evaluation.
+- [ ] **Upload Document NLP (`M9c`)**: Long-document chunking and noisy PDF text extraction feeding cleanly into `ExtractionAgent`, `ResolutionAgent`, and `ThreadingAgent` for `user_upload` files.
+- [ ] **Human-Review Feedback Loop (`M9`)**: Use `/review` analyst accept/reject/split history to calibrate `ResolutionAgent` matching thresholds and close the 15-pair auto-merge precision gap (`88.89%` $\rightarrow$ `≥90%`).
+- [ ] **Evaluation & Coverage (`M10`)**: Add labelled event-threading accuracy benchmark (`>75%` target), maintain evaluation tracking across model versions, finalize agent model cards, and contribute unit/integration tests toward `>80%` repo coverage.
+- [ ] **Stretch**: Image and video forgery signals (Deepfake detection v1).
+
+#### Jaish (Data Expansion, Intelligence & Grounding)
+
+- [ ] **96+ Source Coverage & Connector Framework (`M7`)**: Plug-in connector base interface (1 small file per new source) scaling from 40 to 96+ sources (expanding Rings 1–4 + public Telegram defence channels; *Stretch: Twitter/X keywords, Sentinel Hub / NASA FIRMS satellite*).
+- [ ] **Upload Parsers & Exports (`M9b` + `M9c`)**: Safe CSV (`pandas` + interactive column-mapping UI), TXT, and PDF (`pypdf`) upload parsers; PDF, CSV, and JSON export endpoints for SitReps, entity profiles, and case bundles (*Stretch: Excel & Word parsers*).
+- [ ] **Disinformation Scoring v1 (`M9`)**: Cross-source contradiction scoring derived from `CorroborationAgent` (`CORROBORATED_BY` vs. `CONTRADICTS` across Rings 1–4).
+- [ ] **SitRep Analyst Approval Flow (`M9`)**: Draft $\rightarrow$ Approved workflow wired into `GroundedSitRepAgent` and `/sitrep` UI so reports require explicit analyst sign-off before being marked final.
+- [ ] **LLM Fallback & Final Validation (`M10`)**: Configurable fallback LLM provider (plus optional Ollama offline hook), final validation of regional threat scores & citation grounding rates, and test coverage toward `>80%`.
+- [ ] **Stretch**: `"Ask Raksha"` grounded Q&A assistant over platform data with per-claim citations.
 
 #### Solid exit criteria
 
-- [ ] 24/7 deployment with monitoring and alerts
-- [ ] Roles enforced; audit log records key analyst actions
-- [ ] Uploads (CSV, TXT, PDF) processed privately; unsafe or oversized files rejected
-- [ ] A reported profile error can be corrected or removed, with a log entry
-- [ ] SitReps require analyst approval before final
-- [ ] Urdu, Chinese and Hindi processed correctly
-- [ ] API responses under 500 ms with caching
-- [ ] Test coverage above 80%
-- [ ] CI/CD deploys on merge to `main`
-- [ ] One external demo completed
+- [ ] 24/7 cloud deployment (`render.yaml` / Docker Compose / VPS) with monitoring and alerts
+- [ ] JWT roles (`admin`, `analyst`, `viewer`) enforced; `audit_log` records key analyst actions
+- [ ] CSV, TXT, and PDF uploads processed in private workspaces; unsafe or oversized files rejected cleanly
+- [ ] Reported profile errors can be corrected or removed via `correction_requests` with an audit log entry
+- [ ] SitReps require analyst approval (`draft` $\rightarrow$ `approved`) before being marked final
+- [ ] Urdu, Chinese, and Hindi/Marathi processed with reported per-language evaluation metrics
+- [ ] API responses under 500 ms with Redis caching
+- [ ] Full test suite coverage above 80% (`pytest --cov`)
+- [ ] CI/CD deploys automatically on merge to `main`
+- [ ] iDEX pitch submitted & at least one external think-tank / defence-desk demo completed
 
 #### What gets cut first if we fall behind
 
-1. Telegram, X, satellite and deepfake work
-2. Excel and Word upload; "Ask Raksha"; offline local model
+1. Twitter/X, satellite, and deepfake detection
+2. Excel and Word upload formats; `"Ask Raksha"` Q&A; offline local LLM mode
 3. Case folders beyond the basics
-4. Source expansion beyond 40
-5. Celery, Grafana and extra infrastructure polish
+4. Extra source expansion beyond 40
+5. Celery, Grafana, and extra infrastructure polish
 
-**Never cut:** provenance, attribution rules, the review queue, the correction workflow and the evaluation set. These make the profile feature safe.
+**Never cut:** provenance, attribution rules, the disambiguation review queue, the correction workflow, and the labelled evaluation set. These are what make the profile feature safe.
 
 ---
 

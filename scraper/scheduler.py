@@ -4,11 +4,13 @@ Run: python -m scraper.scheduler
 
 Executes one full cycle on startup, then repeats every SCRAPE_INTERVAL_HOURS.
 """
+import json
 import signal
 import sys
 from datetime import datetime, timezone
 
 from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy import text
 
@@ -100,6 +102,64 @@ def run_scrape_cycle():
     logger.info("=" * 60)
 
 
+def run_daily_sitrep_job():
+    """Generate and persist the daily 6:00 AM IST grounded Situation Report."""
+    logger.info("Scheduled 06:00 IST job: generating daily grounded SitRep...")
+    try:
+        from agents.report.sitrep_agent import GroundedSitRepAgent
+        from common.schemas.intelligence import SitRepIn
+
+        agent = GroundedSitRepAgent()
+        sitrep_out = agent.run(SitRepIn())
+        citations_payload = [
+            {
+                "sentence": s.text,
+                "cited_article_ids": s.cited_article_ids,
+                "is_grounded": s.is_grounded,
+            }
+            for s in sitrep_out.sentences
+        ]
+        rendered_content = "\n".join(s.text for s in sitrep_out.sentences)
+
+        with get_db() as db:
+            db.execute(
+                text("""
+                    INSERT INTO sitreps (
+                        report_date, content, top_threats, article_count,
+                        executive_summary, citations, grounding_rate, generated_at
+                    ) VALUES (
+                        :report_date, :content, CAST(:top_threats AS jsonb), :article_count,
+                        :exec_summary, CAST(:citations AS jsonb), :grounding_rate, NOW()
+                    )
+                    ON CONFLICT (report_date) DO UPDATE SET
+                        content = EXCLUDED.content,
+                        top_threats = EXCLUDED.top_threats,
+                        article_count = EXCLUDED.article_count,
+                        executive_summary = EXCLUDED.executive_summary,
+                        citations = EXCLUDED.citations,
+                        grounding_rate = EXCLUDED.grounding_rate,
+                        generated_at = NOW()
+                """),
+                {
+                    "report_date": sitrep_out.report_date,
+                    "content": rendered_content,
+                    "top_threats": json.dumps(sitrep_out.top_threats),
+                    "article_count": sitrep_out.article_count,
+                    "exec_summary": sitrep_out.executive_summary,
+                    "citations": json.dumps(citations_payload),
+                    "grounding_rate": float(sitrep_out.grounding_rate),
+                },
+            )
+        logger.info(
+            "Daily SitRep persisted for %s (%d articles, grounding=%.2f)",
+            sitrep_out.report_date,
+            sitrep_out.article_count,
+            sitrep_out.grounding_rate,
+        )
+    except Exception as exc:
+        logger.error("Failed scheduled daily SitRep job: %s", exc)
+
+
 def _shutdown(signum, frame):
     logger.info("Shutdown signal received — stopping.")
     sys.exit(0)
@@ -110,7 +170,7 @@ def main():
         logger.error("Cannot connect to PostgreSQL. Check DATABASE_URL in .env")
         sys.exit(1)
 
-    logger.info(f"Raksha AI Scraper | Sources: {len(RSS_SOURCES)} RSS + NewsAPI | Interval: {settings.SCRAPE_INTERVAL_HOURS}h")
+    logger.info(f"Raksha AI Scraper | Sources: {len(RSS_SOURCES)} RSS + GDELT + NewsAPI | Interval: {settings.SCRAPE_INTERVAL_HOURS}h")
 
     signal.signal(signal.SIGINT,  _shutdown)
     signal.signal(signal.SIGTERM, _shutdown)
@@ -118,7 +178,7 @@ def main():
     # Run immediately on startup
     run_scrape_cycle()
 
-    # Then schedule recurring
+    # Then schedule recurring scrape + daily 6:00 AM IST SitRep
     scheduler = BlockingScheduler()
     scheduler.add_job(
         run_scrape_cycle,
@@ -126,7 +186,13 @@ def main():
         id="scrape_cycle",
         misfire_grace_time=300,
     )
-    logger.info(f"Next cycle in {settings.SCRAPE_INTERVAL_HOURS} hours. Ctrl+C to stop.")
+    scheduler.add_job(
+        run_daily_sitrep_job,
+        trigger=CronTrigger(hour=6, minute=0, timezone="Asia/Kolkata"),
+        id="daily_sitrep_0600_ist",
+        misfire_grace_time=3600,
+    )
+    logger.info(f"Next cycle in {settings.SCRAPE_INTERVAL_HOURS} hours; daily SitRep scheduled at 06:00 IST. Ctrl+C to stop.")
     scheduler.start()
 
 

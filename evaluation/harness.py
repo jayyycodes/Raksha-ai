@@ -186,11 +186,53 @@ def run_sitrep_grounding_eval(dataset_path: str = "evaluation/data/sitrep_ground
     }
 
 
+def run_entity_resolution_eval(dataset_path: str = "evaluation/data/entity_pairs_eval.jsonl") -> Dict[str, Any]:
+    """Benchmark ResolutionAgent precision & recall against entity_pairs_eval.jsonl."""
+    from agents.resolution.agent import ResolutionAgent
+
+    agent = ResolutionAgent()
+    dataset = load_dataset(dataset_path)
+
+    correct = 0
+    auto_merge_correct = 0
+    auto_merge_total = 0
+
+    for item in dataset:
+        res_a = agent.resolve_entity(item["entity_a"])
+        res_b = agent.resolve_entity(item["entity_b"])
+        same_canonical = res_a["canonical_name"].strip().lower() == res_b["canonical_name"].strip().lower()
+        both_strong = res_a["action"] == "auto_link" or res_b["action"] == "auto_link"
+
+        predicted = "MATCH" if (same_canonical and both_strong) else (
+            "REVIEW_NEEDED" if (res_a["action"] == "review_queue" or res_b["action"] == "review_queue") else "DISTINCT"
+        )
+        truth = item["label"]
+
+        if predicted == "MATCH":
+            auto_merge_total += 1
+            if truth == "MATCH":
+                auto_merge_correct += 1
+
+        # Conservative precision rule: REVIEW_NEEDED not auto-merged is safe
+        if predicted == truth or (truth == "REVIEW_NEEDED" and predicted != "MATCH"):
+            correct += 1
+
+    precision = round(auto_merge_correct / auto_merge_total, 4) if auto_merge_total > 0 else 1.0
+    accuracy = round(correct / len(dataset), 4) if dataset else 1.0
+    return {
+        "agent_name": "ResolutionAgent",
+        "total_pairs": len(dataset),
+        "auto_merge_precision": precision,
+        "overall_safety_accuracy": accuracy,
+        "auto_merges_predicted": auto_merge_total,
+    }
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Raksha AI Evaluation Harness")
     parser.add_argument(
         "--agent",
-        choices=["threat_v0", "corroboration", "anomaly", "sitrep_grounding", "all"],
+        choices=["threat_v0", "corroboration", "anomaly", "sitrep_grounding", "entity_resolution", "all"],
         default="all",
     )
     args = parser.parse_args()
@@ -216,3 +258,11 @@ if __name__ == "__main__":
         print(f"- Total Evaluated Sentences: {res['total_sentences']}")
         print(f"- Citation Grounding Accuracy: {res['grounding_attribution_accuracy']*100:.2f}%")
         print(f"- Sample Grounding Rate: {res['sample_grounding_rate']*100:.2f}%")
+        print("\n" + "=" * 50 + "\n")
+
+    if args.agent in ("entity_resolution", "all"):
+        res = run_entity_resolution_eval()
+        print(f"### Entity Resolution Precision Report:")
+        print(f"- Total Evaluated Pairs: {res['total_pairs']}")
+        print(f"- Auto-Merge Precision: {res['auto_merge_precision']*100:.2f}% ({res['auto_merges_predicted']} auto-merges)")
+        print(f"- Conservative Safety Accuracy: {res['overall_safety_accuracy']*100:.2f}%")

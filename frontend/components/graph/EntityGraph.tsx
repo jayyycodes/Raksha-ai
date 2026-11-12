@@ -29,6 +29,15 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({ data }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
   const [selectedNode, setSelectedNode] = useState<GraphNodeItem | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<{
+    id: string;
+    sourceLabel: string;
+    targetLabel: string;
+    linkType: string;
+    confidence: number;
+    method: string;
+    articleId?: number;
+  } | null>(null);
   const [neighborList, setNeighborList] = useState<Array<{ id: string; label: string; relation: string; type: string }>>([]);
   const [activeLayout, setActiveLayout] = useState<'cose' | 'concentric'>('cose');
 
@@ -109,6 +118,7 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({ data }) => {
     if (!cy) return;
     cy.elements().removeClass('dimmed highlighted selected-focus');
     setSelectedNode(null);
+    setSelectedEdge(null);
     setNeighborList([]);
   }, []);
 
@@ -133,6 +143,8 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({ data }) => {
           target: e.target,
           label: e.link_type,
           confidence: e.confidence,
+          method: e.method || 'ner_co_occurrence',
+          article_id: e.article_id,
         },
       })),
     ];
@@ -228,8 +240,31 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({ data }) => {
 
     cy.on('tap', 'node', (evt) => {
       const node = evt.target;
+      setSelectedEdge(null);
       setSelectedNode(node.data('raw'));
       highlightNeighbors(node);
+    });
+
+    cy.on('tap', 'edge', (evt) => {
+      const edge = evt.target;
+      cy.elements().removeClass('dimmed highlighted selected-focus');
+      const src = edge.source();
+      const tgt = edge.target();
+      edge.addClass('highlighted');
+      src.addClass('selected-focus');
+      tgt.addClass('selected-focus');
+      cy.elements().not(edge).not(src).not(tgt).addClass('dimmed');
+
+      setSelectedNode(null);
+      setSelectedEdge({
+        id: edge.id(),
+        sourceLabel: src.data('label'),
+        targetLabel: tgt.data('label'),
+        linkType: edge.data('label') || 'ASSOCIATED_WITH',
+        confidence: Number(edge.data('confidence') || 0.8),
+        method: edge.data('method') || 'ner_co_occurrence',
+        articleId: edge.data('article_id'),
+      });
     });
 
     cy.on('tap', (evt) => {
@@ -437,7 +472,7 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({ data }) => {
             )}
 
             <p className="text-[11px] text-text-muted leading-relaxed">
-              Attributed strictly to public intelligence feeds. Ontological links generated from entity co-occurrence & analyst verification.
+              Attributed strictly to public intelligence feeds. Ontological links generated from entity co-occurrence & analyst attribution.
             </p>
           </div>
 
@@ -455,6 +490,68 @@ export const EntityGraph: React.FC<EntityGraphProps> = ({ data }) => {
               Deselect & Clear Focus
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Side Edge Lineage Drawer ("Why is this linked?") */}
+      {selectedEdge && !selectedNode && (
+        <div className="w-88 bg-card border-l border-border p-5 flex flex-col justify-between overflow-y-auto z-10 shadow-xl animate-in slide-in-from-right duration-200">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-accent-saffron text-white">
+                Link Lineage
+              </span>
+              <span className="text-[11px] font-mono text-text-muted">
+                {(selectedEdge.confidence * 100).toFixed(0)}% Confidence
+              </span>
+            </div>
+
+            <div>
+              <h3 className="font-serif font-bold text-lg text-text-primary">
+                Why is this linked?
+              </h3>
+              <p className="text-xs text-text-secondary mt-1 leading-relaxed">
+                <strong className="text-text-primary">{selectedEdge.sourceLabel}</strong>{' '}
+                <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-subtle-fill border border-border">
+                  {selectedEdge.linkType}
+                </span>{' '}
+                <strong className="text-text-primary">{selectedEdge.targetLabel}</strong>
+              </p>
+            </div>
+
+            <div className="space-y-2 text-xs bg-subtle-fill/50 p-3 rounded border border-border/60">
+              <div className="flex justify-between py-1 border-b border-border/40">
+                <span className="text-text-muted">Extraction Method:</span>
+                <span className="font-mono font-semibold text-text-primary">{selectedEdge.method}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-border/40">
+                <span className="text-text-muted">Confidence Score:</span>
+                <span className="font-semibold text-text-primary">{selectedEdge.confidence.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between py-1">
+                <span className="text-text-muted">Source Provenance:</span>
+                <span className="font-semibold text-text-primary">
+                  {selectedEdge.articleId ? `Article #${selectedEdge.articleId}` : 'Strategic Ontology Baseline'}
+                </span>
+              </div>
+            </div>
+
+            {selectedEdge.articleId && (
+              <Link
+                href={`/articles/${selectedEdge.articleId}`}
+                className="block w-full text-center py-2 px-3 rounded bg-primary-navy text-white text-xs font-semibold hover:bg-primary-navy-dark transition-colors shadow-sm"
+              >
+                Inspect Source Evidence Article →
+              </Link>
+            )}
+          </div>
+
+          <button
+            onClick={clearHighlight}
+            className="w-full text-center py-1.5 text-xs text-text-muted hover:text-text-primary transition-colors border-t border-border pt-3 mt-4"
+          >
+            Deselect & Clear Focus
+          </button>
         </div>
       )}
     </div>
