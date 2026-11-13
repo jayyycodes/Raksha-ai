@@ -18,11 +18,22 @@ def get_db():
 @router.get("")
 def get_stats(db=Depends(get_db)):
     """Dashboard summary: total articles, today, per-ring, per-source, last scrape."""
-    total = db.execute(text("SELECT COUNT(*) FROM articles")).scalar()
+    total = db.execute(text("SELECT COUNT(*) FROM articles")).scalar() or 0
     today = db.execute(
         text("SELECT COUNT(*) FROM articles WHERE published_at >= NOW() - INTERVAL '24 hours'")
-    ).scalar()
-    processed = db.execute(text("SELECT COUNT(*) FROM articles WHERE is_processed = TRUE")).scalar()
+    ).scalar() or 0
+    processed = db.execute(text("SELECT COUNT(*) FROM articles WHERE is_processed = TRUE")).scalar() or 0
+    total_sources = db.execute(text("SELECT COUNT(*) FROM sources")).scalar() or 0
+    active_sources = db.execute(text("SELECT COUNT(*) FROM sources WHERE is_active = TRUE")).scalar() or 0
+    sources_with_data = db.execute(text("SELECT COUNT(DISTINCT source_id) FROM articles")).scalar() or 0
+
+    # Recent articles from latest scrape window (fallback when last 24h has zero new records)
+    latest_batch_count = db.execute(
+        text("""
+            SELECT COUNT(*) FROM articles
+            WHERE published_at >= (SELECT COALESCE(MAX(published_at) - INTERVAL '24 hours', NOW() - INTERVAL '24 hours') FROM articles)
+        """)
+    ).scalar() or 0
 
     per_ring = db.execute(
         text("""
@@ -36,7 +47,7 @@ def get_stats(db=Depends(get_db)):
         text("""
             SELECT s.id, s.name, COUNT(a.id) AS count
             FROM articles a JOIN sources s ON s.id = a.source_id
-            GROUP BY s.id, s.name ORDER BY count DESC LIMIT 15
+            GROUP BY s.id, s.name ORDER BY count DESC LIMIT 50
         """)
     ).fetchall()
 
@@ -56,7 +67,11 @@ def get_stats(db=Depends(get_db)):
     return {
         "total_articles": total,
         "todays_articles": today,
+        "latest_batch_articles": latest_batch_count,
         "processed_articles": processed,
+        "total_sources": total_sources,
+        "active_sources": active_sources,
+        "sources_with_data": sources_with_data,
         "last_scrape_at": str(last_scrape) if last_scrape else None,
         "per_ring": {r.ring: r.count for r in per_ring},
         "per_source": [{"id": r.id, "name": r.name, "count": r.count} for r in per_source],

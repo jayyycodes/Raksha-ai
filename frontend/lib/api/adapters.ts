@@ -90,7 +90,11 @@ export function adaptStats(raw: any): SystemStats {
   return {
     total_articles: Number(raw.total_articles || 0),
     todays_articles: Number(raw.todays_articles || 0),
+    latest_batch_articles: Number(raw.latest_batch_articles || 0),
     processed_articles: Number(raw.processed_articles || 0),
+    total_sources: Number(raw.total_sources || 40),
+    active_sources: Number(raw.active_sources || 40),
+    sources_with_data: Number(raw.sources_with_data || 0),
     last_scrape_at: raw.last_scrape_at || null,
     per_ring: raw.per_ring || { '1': 0, '2': 0, '3': 0, '4': 0 },
     per_source: Array.isArray(raw.per_source) ? raw.per_source : [],

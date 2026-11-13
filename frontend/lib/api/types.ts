@@ -54,7 +54,11 @@ export interface SourceHealth {
 export interface SystemStats {
   total_articles: number;
   todays_articles: number;
+  latest_batch_articles?: number;
   processed_articles: number;
+  total_sources?: number;
+  active_sources?: number;
+  sources_with_data?: number;
   last_scrape_at: string | null;
   per_ring: Record<string, number>;
   per_source: Array<{ id: number; name: string; count: number }>;

@@ -105,8 +105,8 @@ def test_list_sources_mocked_db():
 
 def test_stats_mocked_db():
     mock_db = MagicMock()
-    # Mocking total, today, processed, per_ring, per_source, last_scrape, event_types
-    mock_db.execute.return_value.scalar.side_effect = [150, 25, 140, "2026-10-31 12:00:00"]
+    # Mocking total, today, processed, total_sources, active_sources, sources_with_data, latest_batch_count, last_scrape
+    mock_db.execute.return_value.scalar.side_effect = [150, 25, 140, 40, 40, 15, 35, "2026-10-31 12:00:00"]
     mock_ring = MagicMock(ring=1, count=80)
     mock_source = MagicMock(id=1, name="PIB India", count=50)
     mock_event = MagicMock(event_type="diplomatic", count=30)
@@ -125,6 +125,8 @@ def test_stats_mocked_db():
     assert data["total_articles"] == 150
     assert data["todays_articles"] == 25
     assert data["processed_articles"] == 140
+    assert data["total_sources"] == 40
+    assert data["active_sources"] == 40
     assert data["per_ring"] == {"1": 80}
 
     app.dependency_overrides.clear()

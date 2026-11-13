@@ -83,13 +83,13 @@ export default async function ArticlesPage({ searchParams }: ArticlePageProps) {
           <StatCard
             label="Total Extracted"
             value={stats.total_articles}
-            subtext="across 15 sources"
+            subtext={`across ${stats.active_sources || 40} active sources`}
             icon={<span>📰</span>}
           />
           <StatCard
             label="Received Today"
-            value={stats.todays_articles}
-            subtext="last 24 hours"
+            value={stats.todays_articles > 0 ? stats.todays_articles : (stats.latest_batch_articles || stats.total_articles)}
+            subtext={stats.todays_articles > 0 ? "last 24 hours" : "active ingestion batch"}
             icon={<span>⏱️</span>}
             accentColor="#C2570C"
           />
