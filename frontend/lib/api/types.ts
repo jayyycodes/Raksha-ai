@@ -96,6 +96,10 @@ export interface MapIncident {
   article_id?: number;
   source_name?: string;
   url?: string;
+  summary?: string;
+  event_id?: number;
+  event_title?: string;
+  related_entities?: Array<{ id: number; name: string; type: string }>;
   occurred_at: string;
 }
 

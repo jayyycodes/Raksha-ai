@@ -27,10 +27,10 @@ export const IncidentMap: React.FC<IncidentMapProps> = ({ incidents }) => {
         return;
       }
 
-      // Center around Northern/Western border theatre
+      // Center around broader South Asia / Indo-Pacific geopolitical theatre
       const map = L.map('raksha-leaflet-map', {
-        center: [32.5, 76.8],
-        zoom: 5.5,
+        center: [23.5, 78.5],
+        zoom: 4.5,
         zoomControl: true,
       });
       mapInstance = map;
@@ -139,19 +139,64 @@ export const IncidentMap: React.FC<IncidentMapProps> = ({ incidents }) => {
               <span className="text-xs text-text-muted">via {selected.source_name || 'OSINT Wire'}</span>
             </div>
 
-            <div className="p-3 bg-subtle-fill/50 rounded border border-border text-xs text-text-secondary mb-4 leading-relaxed">
-              <p className="font-semibold text-text-primary mb-1">Geospatial Tactical Coordinates:</p>
+            <div className="p-3 bg-subtle-fill/50 rounded border border-border text-xs text-text-secondary mb-3 leading-relaxed">
+              <p className="font-semibold text-text-primary mb-1">Geospatial Coordinates:</p>
               <p className="font-mono text-[11px] text-primary-navy">
                 Lat: {selected.latitude.toFixed(4)}° N, Lon: {selected.longitude.toFixed(4)}° E
               </p>
             </div>
 
-            <div className="text-xs text-text-secondary space-y-2">
-              <p className="font-semibold text-text-primary">Operational Status:</p>
-              <p className="leading-relaxed">
-                Incident detected and indexed via automated multi-ring syndication feeds. Assigned to Northern/Western sector observation buffer.
-              </p>
-            </div>
+            {/* Intelligence Summary Excerpt */}
+            {selected.summary && (
+              <div className="mb-4">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted mb-1">
+                  Intelligence Summary:
+                </p>
+                <div className="p-3 bg-canvas rounded border border-border text-xs text-text-secondary leading-relaxed">
+                  {selected.summary}
+                </div>
+              </div>
+            )}
+
+            {/* Linked Event Cluster Link */}
+            {selected.event_id && (
+              <div className="p-3 bg-card rounded border border-accent-saffron/40 flex flex-col gap-1.5 mb-4 shadow-sm">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-accent-saffron flex items-center gap-1">
+                  <span>⚡</span> Linked Event Timeline
+                </span>
+                <p className="text-xs font-serif font-bold text-text-primary leading-tight">
+                  {selected.event_title || `Event #${selected.event_id}`}
+                </p>
+                <Link
+                  href={`/events/${selected.event_id}`}
+                  className="text-[11px] font-semibold text-primary-navy hover:underline inline-flex items-center gap-1 mt-1"
+                >
+                  <span>View Event Timeline & Trajectory →</span>
+                </Link>
+              </div>
+            )}
+
+            {/* Related Entities & Actors */}
+            {selected.related_entities && selected.related_entities.length > 0 && (
+              <div className="mb-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">
+                  Linked Entities & Actors:
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {selected.related_entities.map((ent) => (
+                    <Link
+                      key={ent.id}
+                      href={`/profiles/${ent.id}`}
+                      className="px-2 py-0.5 rounded text-[11px] font-medium bg-canvas border border-border hover:border-primary-navy text-text-primary hover:text-primary-navy transition-colors inline-flex items-center gap-1"
+                      title={`View ${ent.type} profile`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-status-green" />
+                      <span>{ent.name}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="pt-4 border-t border-border flex flex-col gap-2">
@@ -163,12 +208,18 @@ export const IncidentMap: React.FC<IncidentMapProps> = ({ incidents }) => {
                 Inspect Article & Provenance →
               </Link>
             )}
+            <Link
+              href={`/graph?q=${encodeURIComponent(selected.location_name)}`}
+              className="w-full text-center py-2 px-3 rounded bg-subtle-fill text-text-primary text-xs font-medium hover:bg-border transition-colors flex items-center justify-center gap-1.5"
+            >
+              <span>Explore in Entity Graph →</span>
+            </Link>
             {selected.url && (
               <a
                 href={selected.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full text-center py-2 px-3 rounded bg-subtle-fill text-text-primary text-xs font-medium hover:bg-border transition-colors flex items-center justify-center gap-1.5"
+                className="w-full text-center py-1.5 px-3 rounded text-text-muted text-[11px] hover:text-text-primary transition-colors flex items-center justify-center gap-1"
               >
                 <span>Read Original Wire</span>
                 <span className="text-xs">↗</span>
