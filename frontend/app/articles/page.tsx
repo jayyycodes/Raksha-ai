@@ -83,7 +83,7 @@ export default async function ArticlesPage({ searchParams }: ArticlePageProps) {
           <StatCard
             label="Total Extracted"
             value={stats.total_articles}
-            subtext={`across ${stats.active_sources || 40} active sources`}
+            subtext={`across ${stats.active_sources || 0} active sources`}
             icon={<span>📰</span>}
           />
           <StatCard

@@ -8,3 +8,4 @@ ALTER TABLE article_analysis
     ADD COLUMN IF NOT EXISTS strategic_implications TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_article_analysis_summary ON article_analysis USING gin(to_tsvector('english', COALESCE(summary, '')));
+
