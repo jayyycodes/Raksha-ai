@@ -7,6 +7,9 @@ export interface Article {
   id: number;
   title: string;
   summary: string;
+  positive_impact_in?: string;
+  negative_impact_in?: string;
+  strategic_implications?: string;
   url: string;
   source_name: string;
   ring: RingId;

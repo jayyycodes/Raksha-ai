@@ -43,6 +43,30 @@ export const ArticleCard: React.FC<{ article: Article }> = ({ article }) => {
         {article.summary}
       </p>
 
+      {/* Strategic Bilateral Impact for India */}
+      {(article.positive_impact_in || article.negative_impact_in) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs bg-bg-light/60 p-2.5 rounded border border-border/70 my-0.5">
+          {article.positive_impact_in && (
+            <div className="flex items-start gap-1.5">
+              <span className="text-status-green font-bold text-xs shrink-0 mt-0.5" title="India Advantage">🟢</span>
+              <div>
+                <span className="font-semibold text-text-primary text-[11px] block">India Advantage:</span>
+                <span className="text-text-secondary text-[11px] leading-tight block">{article.positive_impact_in}</span>
+              </div>
+            </div>
+          )}
+          {article.negative_impact_in && (
+            <div className="flex items-start gap-1.5">
+              <span className="text-status-red font-bold text-xs shrink-0 mt-0.5" title="Threat Factor">🔴</span>
+              <div>
+                <span className="font-semibold text-text-primary text-[11px] block">Threat Factor:</span>
+                <span className="text-text-secondary text-[11px] leading-tight block">{article.negative_impact_in}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Analysis Badges Footer */}
       <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-border/60 mt-1">
         <div className="flex flex-wrap items-center gap-2">

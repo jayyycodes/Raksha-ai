@@ -30,6 +30,18 @@ def list_articles(
     db=Depends(get_db),
 ):
     """Paginated article feed with optional filters."""
+    # Normalize Query objects when invoked directly in tests/scripts
+    if not isinstance(ring, int):
+        ring = None
+    if not isinstance(event_type, str):
+        event_type = None
+    if not isinstance(date_from, str):
+        date_from = None
+    if not isinstance(page, int):
+        page = 1
+    if not isinstance(size, int):
+        size = 20
+
     filters = []
     params: dict = {"limit": size, "offset": (page - 1) * size}
 
@@ -47,10 +59,11 @@ def list_articles(
 
     rows = db.execute(
         text(f"""
-            SELECT a.id, a.title, a.url, a.language, a.published_at, a.is_processed,
+            SELECT a.id, a.title, a.url, a.content, a.language, a.published_at, a.is_processed,
                    s.name AS source_name, s.ring,
+                   aa.summary, aa.positive_impact_in, aa.negative_impact_in, aa.strategic_implications,
                    aa.event_type, aa.sentiment, aa.threat_level, aa.confidence,
-                   aa.method, aa.model_version
+                   aa.translated_text, aa.method, aa.model_version
             FROM articles a
             LEFT JOIN sources s ON s.id = a.source_id
             LEFT JOIN article_analysis aa ON aa.article_id = a.id
@@ -87,6 +100,7 @@ def get_article(article_id: int, db=Depends(get_db)):
             SELECT a.id, a.title, a.url, a.content, a.language, a.published_at, a.is_processed,
                    a.url_hash,
                    s.name AS source_name, s.ring, s.country,
+                   aa.summary, aa.positive_impact_in, aa.negative_impact_in, aa.strategic_implications,
                    aa.event_type, aa.sentiment, aa.threat_level, aa.confidence,
                    aa.translated_text, aa.method, aa.model_version, aa.source_ids,
                    aa.created_at AS analyzed_at

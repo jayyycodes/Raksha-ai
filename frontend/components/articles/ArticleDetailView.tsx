@@ -76,6 +76,46 @@ export const ArticleDetailView: React.FC<{ article: Article }> = ({ article }) =
           </div>
         </div>
 
+        {/* Strategic Intelligence Assessment for India */}
+        {(article.positive_impact_in || article.negative_impact_in || article.strategic_implications) && (
+          <div className="flex flex-col gap-3 bg-subtle-fill/70 p-5 rounded-md border border-border">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-primary-navy flex items-center gap-1.5">
+              <span>🇮🇳</span>
+              <span>Strategic Impact Assessment & India Implications</span>
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {article.positive_impact_in && (
+                <div className="bg-card p-3.5 rounded border border-status-green/30 flex flex-col gap-1">
+                  <span className="text-xs font-bold text-status-green flex items-center gap-1">
+                    <span>🟢</span> India Advantage / Opportunity
+                  </span>
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    {article.positive_impact_in}
+                  </p>
+                </div>
+              )}
+              {article.negative_impact_in && (
+                <div className="bg-card p-3.5 rounded border border-status-red/30 flex flex-col gap-1">
+                  <span className="text-xs font-bold text-status-red flex items-center gap-1">
+                    <span>🔴</span> Threat Factor & Adversary Risk
+                  </span>
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    {article.negative_impact_in}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {article.strategic_implications && (
+              <div className="pt-2 border-t border-border/60 text-xs text-text-secondary flex items-start gap-2">
+                <span className="font-semibold text-text-primary shrink-0">Tactical Recommendation:</span>
+                <span>{article.strategic_implications}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Translation Panel (if non-English or translated) */}
         {article.translated && article.translated_text && (
           <div className="flex flex-col gap-2">

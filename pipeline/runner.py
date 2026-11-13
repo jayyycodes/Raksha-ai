@@ -80,29 +80,103 @@ def _fetch_article_by_id(db, article_id: int) -> Optional[dict]:
     return dict(row._mapping) if row else None
 
 
+def _generate_intelligence_assessment(
+    title: str,
+    content: str,
+    event_type: str,
+    sentiment: str,
+    threat_level: int,
+    ring: int,
+) -> dict:
+    """
+    Generate Palantir-grade OSINT intelligence summary, bilateral impacts on India,
+    and strategic implications.
+    """
+    cleaned_content = (content or "").strip()
+    # 1. Summary generation
+    if cleaned_content and len(cleaned_content) > 60:
+        sentences = [s.strip() for s in cleaned_content.replace("\n", " ").split(". ") if s.strip()]
+        if len(sentences) >= 2:
+            summary = ". ".join(sentences[:3]) + "."
+        else:
+            summary = cleaned_content[:350] + ("..." if len(cleaned_content) > 350 else "")
+    else:
+        summary = (
+            f"Open-source intelligence report regarding '{title}'. "
+            f"Monitored under Security Ring {ring} with event classification '{event_type.replace('_', ' ').title()}' "
+            f"and assessed tactical threat index {threat_level}/10."
+        )
+
+    # 2. Positive & Negative Strategic Impacts for India
+    evt = (event_type or "general").lower()
+    sent = (sentiment or "neutral").lower()
+
+    if evt == "border_incident":
+        pos_impact = "Enables verification of local buffer zones; activates military hotline mechanisms to maintain disengagement."
+        neg_impact = "Presents risk of tactical confrontation, line-of-control friction, and increased alert status for frontier garrisons."
+        implications = "Maintain heightened UAV/ISR surveillance along contested sectors and verify buffer zone protocols."
+    elif evt == "naval":
+        pos_impact = "Enhances Indian Navy Maritime Domain Awareness (MDA) across key Indian Ocean Region (IOR) shipping lanes."
+        neg_impact = "Adversarial surveillance or dual-use presence near regional chokepoints threatens vital maritime supply lines."
+        implications = "Coordinate P-8I Neptune maritime patrol flights and maintain liaison with friendly regional coastal radars."
+    elif evt == "cyber_attack":
+        pos_impact = "Accelerates defensive signature generation and vulnerability remediation across critical defense assets."
+        neg_impact = "Potential exfiltration of operational telemetry, logistics data, or command-and-control network disruption."
+        implications = "Mandate immediate air-gap verification and patch cycle execution across military information grids."
+    elif evt == "military_movement":
+        pos_impact = "Allows early posture recalibration and counter-mobilisation without operational surprise."
+        neg_impact = "Adversarial forward deployment of armored or missile units compresses tactical reaction timelines."
+        implications = "Alert Northern/Western command reconnaissance units to cross-check satellite passes."
+    elif evt == "diplomatic":
+        pos_impact = "Affords diplomatic leverage for India to reinforce multilateral security compacts and partner cooperation."
+        neg_impact = "Adversary coalition-building attempts to dilute India's regional influence across the immediate periphery."
+        implications = "Engage MEA regional desks to counter hostile diplomatic narratives in international forums."
+    elif threat_level >= 7 or sent == "negative":
+        pos_impact = "Early OSINT detection provides tactical advance notice for preventative defensive readiness."
+        neg_impact = "Heightened regional volatility, aggressive rhetoric, or economic friction impacting national interests."
+        implications = "Flag for inter-agency coordination review and monitor regional media for information warfare indicators."
+    else:
+        pos_impact = "Promotes operational predictability, status-quo stability, and cross-border commercial continuity."
+        neg_impact = "Requires vigilant passive monitoring to ensure benign statements are not masking asymmetrical preparations."
+        implications = "Maintain automated feed ingestion and standard 4-hour correlation cycle."
+
+    return {
+        "summary": summary,
+        "positive_impact_in": pos_impact,
+        "negative_impact_in": neg_impact,
+        "strategic_implications": implications,
+    }
+
+
 def _store_analysis(db, result: dict) -> None:
     """Insert or update one row in article_analysis with full Stage 2 provenance."""
     db.execute(
         text("""
             INSERT INTO article_analysis (
                 article_id, translated_text, event_type, sentiment, threat_level,
+                summary, positive_impact_in, negative_impact_in, strategic_implications,
                 method, model_version, source_ids, confidence, claim_status, source_type, created_at
             ) VALUES (
                 :article_id, :translated_text, :event_type, :sentiment, :threat_level,
+                :summary, :positive_impact_in, :negative_impact_in, :strategic_implications,
                 :method, :model_version, :source_ids, :confidence, 'reported', 'public', :created_at
             )
             ON CONFLICT (article_id) DO UPDATE SET
-                translated_text = EXCLUDED.translated_text,
-                event_type      = EXCLUDED.event_type,
-                sentiment       = EXCLUDED.sentiment,
-                threat_level    = EXCLUDED.threat_level,
-                method          = EXCLUDED.method,
-                model_version   = EXCLUDED.model_version,
-                source_ids      = EXCLUDED.source_ids,
-                confidence      = EXCLUDED.confidence,
-                claim_status    = EXCLUDED.claim_status,
-                source_type     = EXCLUDED.source_type,
-                created_at      = EXCLUDED.created_at
+                translated_text        = EXCLUDED.translated_text,
+                event_type             = EXCLUDED.event_type,
+                sentiment              = EXCLUDED.sentiment,
+                threat_level           = EXCLUDED.threat_level,
+                summary                = EXCLUDED.summary,
+                positive_impact_in     = EXCLUDED.positive_impact_in,
+                negative_impact_in     = EXCLUDED.negative_impact_in,
+                strategic_implications = EXCLUDED.strategic_implications,
+                method                 = EXCLUDED.method,
+                model_version          = EXCLUDED.model_version,
+                source_ids             = EXCLUDED.source_ids,
+                confidence             = EXCLUDED.confidence,
+                claim_status           = EXCLUDED.claim_status,
+                source_type            = EXCLUDED.source_type,
+                created_at             = EXCLUDED.created_at
         """),
         result,
     )
@@ -493,12 +567,26 @@ def _run_single_article(
         )
     )
 
+    # Generate Palantir-grade intelligence assessment & strategic impacts for India
+    intel_assessment = _generate_intelligence_assessment(
+        title=translated_title,
+        content=translated_text,
+        event_type=extract_out.event_type,
+        sentiment=extract_out.sentiment,
+        threat_level=threat_out.threat_level,
+        ring=article_in.ring,
+    )
+
     analysis_row = {
         "article_id": article_in.id,
         "translated_text": translated_text,
         "event_type": extract_out.event_type,
         "sentiment": extract_out.sentiment,
         "threat_level": threat_out.threat_level,
+        "summary": intel_assessment["summary"],
+        "positive_impact_in": intel_assessment["positive_impact_in"],
+        "negative_impact_in": intel_assessment["negative_impact_in"],
+        "strategic_implications": intel_assessment["strategic_implications"],
         "method": "stage2_nlp_pipeline_v2",
         "model_version": f"trans:{trans_agent.version}|extr:{extract_agent.version}|score:{score_agent.version}",
         "source_ids": [article_in.id] if article_in.id else [],

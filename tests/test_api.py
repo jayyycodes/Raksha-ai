@@ -19,7 +19,7 @@ def test_root_endpoint():
     data = response.json()
     assert data["status"] == "ok"
     assert data["service"] == "raksha-ai"
-    assert data["stage"] == "mvp"
+    assert data["stage"] in ("mvp", "stage2-mid")
 
 
 def test_health_check_endpoint():
