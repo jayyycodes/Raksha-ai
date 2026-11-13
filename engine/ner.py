@@ -81,21 +81,68 @@ WEAPON_DESIGNATION_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# Domain-specific defense patterns for terms spaCy might miss or misclassify.
-# LoC/LOC and LAC require explicit acronym casing or the full phrase to avoid matching lowercase words.
+# Domain-specific defense patterns for terms spaCy might miss or misclassify,
+# or for running in lightweight production environments without heavy spaCy weights.
 DEFENSE_PATTERNS: list[tuple[re.Pattern, str, float]] = [
-    (re.compile(r"\b(?:(?i:Line of Actual Control)|LAC)\b"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
-    (re.compile(r"\b(?:(?i:Line of Control)|LoC|LOC)\b"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    # Strategic Locations & Friction Points
+    (re.compile(r"\b(?:Line of Actual Control|LAC)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Line of Control|LoC|LOC)\b"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Siachen(?:\s+Glacier)?)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Galwan(?:\s+Valley)?)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Depsang(?:\s+Plains)?)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Demchok(?:\s+Sector)?)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Pangong(?:\s+Tso)?)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Eastern Ladakh|Ladakh)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Tawang(?:\s+Sector)?)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Kibithu|Walong)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Arunachal(?:\s+Pradesh)?)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Rajouri|Poonch|Uri|Baramulla|Kupwara)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Jammu\s*(?:&|and)\s*Kashmir|J&K)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Sir Creek|Rann of Kutch)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Siliguri Corridor|Doklam)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Hyderabad|Secunderabad)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:New Delhi|Delhi)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Mumbai|Bengaluru|Bangalore|Kolkata|Visakhapatnam|Jaipur)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Islamabad|Rawalpindi|Gwadar|Lahore|Karachi|Muzaffarabad|Gilgit)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Beijing|Chengdu|Lhasa|Hotan|Kashgar|Tibet|Xinjiang)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Kathmandu|Dhaka|Colombo|Hambantota|Kabul|Naypyidaw|Male|Thimphu)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Strait of Malacca|Bab-el-Mandeb|Strait of Hormuz|Diego Garcia|South China Sea)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+
+    # Key Strategic Organisations
+    (re.compile(r"\b(?:Indian Army|IA)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Indian Air Force|IAF)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Indian Navy|IN)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Defence Research and Development Organisation|Defense Research and Development Organisation|DRDO)\b", re.IGNORECASE), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Border Security Force|BSF)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Indo-Tibetan Border Police|ITBP)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:People's Liberation Army|PLA|PLAAF|PLAN)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Western Theater Command|WTC)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Central Military Commission|CMC)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Pakistan Army|Pakistan Air Force|PAF|Pakistan Navy)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Rawalpindi GHQ|GHQ)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Inter-Services Intelligence|ISI)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Jaish-e-Mohammed|JeM)\b", re.IGNORECASE), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Lashkar-e-Taiba|LeT)\b", re.IGNORECASE), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:ISRO|HAL|BEL|Mazagon Dock)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+
+    # Key Named Strategic Persons / Leaders
+    (re.compile(r"\b(?:General Upendra Dwivedi|Upendra Dwivedi|COAS)\b"), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:General Anil Chauhan|Anil Chauhan|CDS)\b"), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Rajnath Singh|S\.?\s*Jaishankar|Narendra Modi)\b", re.IGNORECASE), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Rahul Gandhi)\b", re.IGNORECASE), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Xi Jinping|Dong Jun|Asim Munir|Shehbaz Sharif)\b", re.IGNORECASE), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Muhammad Yunus|K\.?P\.?\s*Sharma Oli)\b", re.IGNORECASE), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
+
+    # Key Weapons & Strategic Platforms
     (re.compile(r"\b(?:BrahMos|Brahmos)\b", re.IGNORECASE), "WEAPON", DEFAULT_PATTERN_CONFIDENCE),
-    (
-        re.compile(
-            r"\b(?:(?i:Defence Research and Development Organisation|Defense Research and Development Organisation)|DRDO)\b"
-        ),
-        "ORG",
-        DEFAULT_PATTERN_CONFIDENCE,
-    ),
     (re.compile(r"\b(?:Agni(?:-[IVX]+|-P)?)\b"), "WEAPON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Rafale|Dassault Rafale)\b", re.IGNORECASE), "WEAPON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Su-30MKI|Sukhoi Su-30|Tejas|Mirage 2000|MiG-29)\b", re.IGNORECASE), "WEAPON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:S-400(?:\s+Triumf)?)\b", re.IGNORECASE), "WEAPON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:INS Vikrant|INS Arihant|INS Arighaat)\b", re.IGNORECASE), "WEAPON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:MQ-9B|SeaGuardian|Predator|Bayraktar|Heron)\b", re.IGNORECASE), "WEAPON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Pinaka|Akash|Barak-8|K9 Vajra|Arjun Mk-1A)\b", re.IGNORECASE), "WEAPON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:J-20|JF-17|HQ-9|Shaheen-III|Babur)\b", re.IGNORECASE), "WEAPON", DEFAULT_PATTERN_CONFIDENCE),
 ]
 
 # Global model cache: {model_name: spacy_Language_instance}
