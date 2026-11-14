@@ -20,6 +20,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
   const isProfilesActive = pathname.startsWith('/profiles');
   const isEventsActive = pathname.startsWith('/events');
   const isThreatsActive = pathname.startsWith('/threats');
+  const isAlertsActive = pathname.startsWith('/alerts');
   const isWatchlistsActive = pathname.startsWith('/watchlists');
   const isReviewActive = pathname.startsWith('/review');
   const isSitrepActive = pathname.startsWith('/sitrep');
@@ -159,7 +160,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
               )}
             >
               <span className="text-base">📈</span>
-              <span>Threats & Alerts</span>
+              <span>Threats & Scores</span>
+            </Link>
+
+            <Link
+              href="/alerts"
+              onClick={onNavigate}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-navy',
+                isAlertsActive
+                  ? 'bg-subtle-fill text-primary-navy font-bold border-l-2 border-primary-navy'
+                  : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
+              )}
+            >
+              <span className="text-base">🚨</span>
+              <span>Security Alerts</span>
             </Link>
 
             <Link

@@ -76,12 +76,12 @@ def _ensure_seed_graph_if_empty(db):
         db.execute(
             text("""
                 INSERT INTO entity_links (source_node_id, target_node_id, link_type, confidence)
-                SELECT s.id, t.id, :ltype, :conf
+                SELECT s.id, t.id, CAST(:ltype AS VARCHAR), :conf
                 FROM entity_nodes s, entity_nodes t
                 WHERE s.name = :src AND t.name = :tgt
                   AND NOT EXISTS (
                       SELECT 1 FROM entity_links el
-                      WHERE el.source_node_id = s.id AND el.target_node_id = t.id AND el.link_type = :ltype
+                      WHERE el.source_node_id = s.id AND el.target_node_id = t.id AND el.link_type = CAST(:ltype AS VARCHAR)
                   )
             """),
             {"src": src_name, "tgt": tgt_name, "ltype": ltype, "conf": conf},
