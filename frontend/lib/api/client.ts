@@ -2,7 +2,30 @@ import { Article, ArticleFilterParams, ArticleListResponse, SourceHealth, System
 import { adaptArticle, adaptSourceHealth, adaptStats } from './adapters';
 import { MOCK_ARTICLES, MOCK_SOURCES_HEALTH, MOCK_STATS, MOCK_GRAPH_DATA } from './mock-data';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export function getBaseUrl(): string {
+  if (typeof window === 'undefined') {
+    return process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+}
+
+export async function apiFetch(input: string | URL, init?: RequestInit): Promise<Response> {
+  const urlStr = input.toString();
+  try {
+    return await fetch(input, init);
+  } catch (err: any) {
+    if (typeof window === 'undefined' && urlStr.includes('localhost:8000')) {
+      const dockerUrl = urlStr.replace('http://localhost:8000', 'http://api:8000');
+      try {
+        return await fetch(dockerUrl, init);
+      } catch {
+        // Fallback failed as well
+      }
+    }
+    throw err;
+  }
+}
+
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === 'true';
 
 export async function fetchStats(): Promise<SystemStats> {
@@ -10,7 +33,7 @@ export async function fetchStats(): Promise<SystemStats> {
     return MOCK_STATS;
   }
   try {
-    const res = await fetch(`${BASE_URL}/api/stats`, { cache: 'no-store' });
+    const res = await apiFetch(`${getBaseUrl()}/api/stats`, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return adaptStats(data);
@@ -63,14 +86,14 @@ export async function fetchArticles(params?: ArticleFilterParams): Promise<Artic
   }
 
   try {
-    const url = new URL(`${BASE_URL}/api/articles`);
+    const url = new URL(`${getBaseUrl()}/api/articles`);
     if (params?.ring && params.ring !== 'all') url.searchParams.set('ring', params.ring);
     if (params?.event_type && params.event_type !== 'all') url.searchParams.set('event_type', params.event_type);
     if (params?.from) url.searchParams.set('date_from', params.from);
     if (params?.page) url.searchParams.set('page', String(params.page));
     if (params?.page_size) url.searchParams.set('size', String(params.page_size));
 
-    const res = await fetch(url.toString(), { cache: 'no-store' });
+    const res = await apiFetch(url.toString(), { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
@@ -99,7 +122,7 @@ export async function fetchArticleById(id: number): Promise<Article | null> {
   }
 
   try {
-    const res = await fetch(`${BASE_URL}/api/articles/${id}`, { cache: 'no-store' });
+    const res = await apiFetch(`${getBaseUrl()}/api/articles/${id}`, { cache: 'no-store' });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
@@ -117,9 +140,9 @@ export async function fetchSourcesHealth(): Promise<SourceHealth[]> {
 
   try {
     // Try health endpoint first, fallback to sources
-    let res = await fetch(`${BASE_URL}/api/sources/health`, { cache: 'no-store' });
+    let res = await apiFetch(`${getBaseUrl()}/api/sources/health`, { cache: 'no-store' });
     if (!res.ok) {
-      res = await fetch(`${BASE_URL}/api/sources`, { cache: 'no-store' });
+      res = await apiFetch(`${getBaseUrl()}/api/sources`, { cache: 'no-store' });
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
@@ -137,11 +160,11 @@ export async function fetchSourcesHealth(): Promise<SourceHealth[]> {
 
 export async function fetchMapIncidents(params?: { ring?: string; threat_min?: number }): Promise<import('./types').MapIncident[]> {
   try {
-    const url = new URL(`${BASE_URL}/api/map/incidents`);
+    const url = new URL(`${getBaseUrl()}/api/map/incidents`);
     if (params?.ring && params.ring !== 'all') url.searchParams.set('ring', params.ring);
     if (params?.threat_min) url.searchParams.set('threat_level_min', String(params.threat_min));
 
-    const res = await fetch(url.toString(), { cache: 'no-store' });
+    const res = await apiFetch(url.toString(), { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.incidents || [];
@@ -156,12 +179,12 @@ export async function fetchGraphData(params?: { ring?: string; entity_type?: str
     return MOCK_GRAPH_DATA;
   }
   try {
-    const url = new URL(`${BASE_URL}/api/graph`);
+    const url = new URL(`${getBaseUrl()}/api/graph`);
     if (params?.ring && params.ring !== 'all') url.searchParams.set('ring', params.ring);
     if (params?.entity_type && params.entity_type !== 'all') url.searchParams.set('entity_type', params.entity_type);
     if (params?.q) url.searchParams.set('q', params.q);
 
-    const res = await fetch(url.toString(), { cache: 'no-store' });
+    const res = await apiFetch(url.toString(), { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (data && data.nodes && data.nodes.length > 0) {
@@ -176,12 +199,12 @@ export async function fetchGraphData(params?: { ring?: string; entity_type?: str
 
 export async function fetchProfiles(params?: { entity_type?: string; ring?: string; q?: string }): Promise<import('./types').ProfileHeaderItem[]> {
   try {
-    const url = new URL(`${BASE_URL}/api/profiles`);
+    const url = new URL(`${getBaseUrl()}/api/profiles`);
     if (params?.entity_type && params.entity_type !== 'all') url.searchParams.set('entity_type', params.entity_type);
     if (params?.ring && params.ring !== 'all') url.searchParams.set('ring', params.ring);
     if (params?.q) url.searchParams.set('q', params.q);
 
-    const res = await fetch(url.toString(), { cache: 'no-store' });
+    const res = await apiFetch(url.toString(), { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
@@ -192,7 +215,7 @@ export async function fetchProfiles(params?: { entity_type?: string; ring?: stri
 
 export async function fetchProfileById(id: number): Promise<import('./types').ProfileDetailData | null> {
   try {
-    const res = await fetch(`${BASE_URL}/api/profiles/${id}`, { cache: 'no-store' });
+    const res = await apiFetch(`${getBaseUrl()}/api/profiles/${id}`, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
@@ -203,7 +226,7 @@ export async function fetchProfileById(id: number): Promise<import('./types').Pr
 
 export async function fetchReviewQueue(status: string = 'pending'): Promise<import('./types').MergeSuggestionItem[]> {
   try {
-    const res = await fetch(`${BASE_URL}/api/review?status=${status}`, { cache: 'no-store' });
+    const res = await apiFetch(`${getBaseUrl()}/api/review?status=${status}`, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.suggestions || [];
@@ -215,7 +238,7 @@ export async function fetchReviewQueue(status: string = 'pending'): Promise<impo
 
 export async function submitReviewAction(id: number, action: 'accept' | 'reject' | 'split'): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE_URL}/api/review/${id}/action`, {
+    const res = await apiFetch(`${getBaseUrl()}/api/review/${id}/action`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, analyst_name: 'lead_analyst' }),
@@ -229,7 +252,7 @@ export async function submitReviewAction(id: number, action: 'accept' | 'reject'
 
 export async function fetchLatestSitRep(): Promise<import('./types').SitRepData | null> {
   try {
-    const res = await fetch(`${BASE_URL}/api/sitreps/latest`, { cache: 'no-store' });
+    const res = await apiFetch(`${getBaseUrl()}/api/sitreps/latest`, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
@@ -240,11 +263,11 @@ export async function fetchLatestSitRep(): Promise<import('./types').SitRepData 
 
 export async function fetchEvents(params?: { status?: string; region?: string; event_type?: string }): Promise<import('./types').EventListItem[]> {
   try {
-    const url = new URL(`${BASE_URL}/api/events`);
+    const url = new URL(`${getBaseUrl()}/api/events`);
     if (params?.status && params.status !== 'all') url.searchParams.set('status', params.status);
     if (params?.region && params.region !== 'all') url.searchParams.set('region', params.region);
     if (params?.event_type && params.event_type !== 'all') url.searchParams.set('event_type', params.event_type);
-    const res = await fetch(url.toString(), { cache: 'no-store' });
+    const res = await apiFetch(url.toString(), { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.events || [];
@@ -256,7 +279,7 @@ export async function fetchEvents(params?: { status?: string; region?: string; e
 
 export async function fetchEventById(id: number): Promise<import('./types').EventDetailData | null> {
   try {
-    const res = await fetch(`${BASE_URL}/api/events/${id}`, { cache: 'no-store' });
+    const res = await apiFetch(`${getBaseUrl()}/api/events/${id}`, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
@@ -267,7 +290,7 @@ export async function fetchEventById(id: number): Promise<import('./types').Even
 
 export async function fetchThreats(): Promise<import('./types').ThreatRegionScore[]> {
   try {
-    const res = await fetch(`${BASE_URL}/api/threats`, { cache: 'no-store' });
+    const res = await apiFetch(`${getBaseUrl()}/api/threats`, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.regions || [];
@@ -279,7 +302,7 @@ export async function fetchThreats(): Promise<import('./types').ThreatRegionScor
 
 export async function fetchThreatHistory(region: string, days: number = 30): Promise<import('./types').ThreatHistoryPoint[]> {
   try {
-    const res = await fetch(`${BASE_URL}/api/threats/${encodeURIComponent(region)}?days=${days}`, { cache: 'no-store' });
+    const res = await apiFetch(`${getBaseUrl()}/api/threats/${encodeURIComponent(region)}?days=${days}`, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.history || [];
@@ -291,10 +314,10 @@ export async function fetchThreatHistory(region: string, days: number = 30): Pro
 
 export async function fetchAlerts(params?: { unread_only?: boolean; severity?: string }): Promise<{ alerts: import('./types').AlertItem[]; unread_count: number }> {
   try {
-    const url = new URL(`${BASE_URL}/api/alerts`);
+    const url = new URL(`${getBaseUrl()}/api/alerts`);
     if (params?.unread_only) url.searchParams.set('unread_only', 'true');
     if (params?.severity && params.severity !== 'all') url.searchParams.set('severity', params.severity);
-    const res = await fetch(url.toString(), { cache: 'no-store' });
+    const res = await apiFetch(url.toString(), { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return { alerts: data.alerts || [], unread_count: data.unread_count || 0 };
@@ -306,7 +329,7 @@ export async function fetchAlerts(params?: { unread_only?: boolean; severity?: s
 
 export async function markAlertRead(id: number): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE_URL}/api/alerts/${id}/read`, { method: 'POST' });
+    const res = await apiFetch(`${getBaseUrl()}/api/alerts/${id}/read`, { method: 'POST' });
     return res.ok;
   } catch (err) {
     console.error('Error marking alert read:', err);
@@ -316,7 +339,7 @@ export async function markAlertRead(id: number): Promise<boolean> {
 
 export async function triggerAnomalyScan(): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE_URL}/api/alerts/scan`, { method: 'POST' });
+    const res = await apiFetch(`${getBaseUrl()}/api/alerts/scan`, { method: 'POST' });
     return res.ok;
   } catch (err) {
     console.error('Error scanning anomalies:', err);
@@ -326,7 +349,7 @@ export async function triggerAnomalyScan(): Promise<boolean> {
 
 export async function fetchWatchlists(): Promise<import('./types').WatchlistItem[]> {
   try {
-    const res = await fetch(`${BASE_URL}/api/watchlists`, { cache: 'no-store' });
+    const res = await apiFetch(`${getBaseUrl()}/api/watchlists`, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.watchlists || [];
@@ -338,7 +361,7 @@ export async function fetchWatchlists(): Promise<import('./types').WatchlistItem
 
 export async function createWatchlist(payload: { name: string; query_type: 'entity' | 'region' | 'keyword'; query_value: string }): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE_URL}/api/watchlists`, {
+    const res = await apiFetch(`${getBaseUrl()}/api/watchlists`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -352,7 +375,7 @@ export async function createWatchlist(payload: { name: string; query_type: 'enti
 
 export async function toggleWatchlist(id: number, is_active: boolean): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE_URL}/api/watchlists/${id}`, {
+    const res = await apiFetch(`${getBaseUrl()}/api/watchlists/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_active }),
@@ -366,7 +389,7 @@ export async function toggleWatchlist(id: number, is_active: boolean): Promise<b
 
 export async function deleteWatchlist(id: number): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE_URL}/api/watchlists/${id}`, { method: 'DELETE' });
+    const res = await apiFetch(`${getBaseUrl()}/api/watchlists/${id}`, { method: 'DELETE' });
     return res.ok;
   } catch (err) {
     console.error('Error deleting watchlist:', err);
@@ -376,7 +399,7 @@ export async function deleteWatchlist(id: number): Promise<boolean> {
 
 export async function fetchUnifiedSearch(query: string): Promise<import('./types').UnifiedSearchResponse | null> {
   try {
-    const res = await fetch(`${BASE_URL}/api/search?q=${encodeURIComponent(query)}&limit=6`, { cache: 'no-store' });
+    const res = await apiFetch(`${getBaseUrl()}/api/search?q=${encodeURIComponent(query)}&limit=6`, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
@@ -387,7 +410,7 @@ export async function fetchUnifiedSearch(query: string): Promise<import('./types
 
 export async function fetchProfileNotes(profileId: number): Promise<import('./types').ProfileNoteItem[]> {
   try {
-    const res = await fetch(`${BASE_URL}/api/profiles/${profileId}/notes`, { cache: 'no-store' });
+    const res = await apiFetch(`${getBaseUrl()}/api/profiles/${profileId}/notes`, { cache: 'no-store' });
     if (!res.ok) return [];
     const data = await res.json();
     return data.notes || [];
@@ -398,7 +421,7 @@ export async function fetchProfileNotes(profileId: number): Promise<import('./ty
 
 export async function addProfileNote(profileId: number, note: string): Promise<import('./types').ProfileNoteItem[]> {
   try {
-    const res = await fetch(`${BASE_URL}/api/profiles/${profileId}/notes`, {
+    const res = await apiFetch(`${getBaseUrl()}/api/profiles/${profileId}/notes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ note, analyst_name: 'lead_analyst' }),
