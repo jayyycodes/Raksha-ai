@@ -97,8 +97,29 @@ def mark_alert_read(alert_id: int, db=Depends(get_db)):
 
 @router.post("/scan")
 def trigger_anomaly_scan():
-    """Run anomaly and watchlist scan on recent intelligence corpus immediately."""
+    """
+    Full real-time intelligence refresh:
+    1. Ingests and processes new articles through Stage 2 NLP pipeline
+    2. Recalculates regional threat scores across all 9 operational theatres (updates 30-day trajectory)
+    3. Executes anomaly and watchlist detection
+    """
+    from pipeline.runner import process_new_articles
+    from report.scorer import calculate_threat_scores
     from report.anomaly import detect_anomalies
 
+    # 1. Process all pending / incoming articles through NLP pipeline
+    processed_count = process_new_articles(run_batch_intelligence=False)
+
+    # 2. Recalculate regional threat scores (appends new historical data point to threat_scores)
+    fresh_scores = calculate_threat_scores(window_hours=24)
+
+    # 3. Detect anomalies and watchlist triggers
     new_alerts = detect_anomalies(window_hours=24)
-    return {"scanned": True, "new_alerts_count": len(new_alerts), "new_alerts": new_alerts}
+
+    return {
+        "scanned": True,
+        "processed_articles": processed_count,
+        "threat_scores_updated": len(fresh_scores),
+        "new_alerts_count": len(new_alerts),
+        "new_alerts": new_alerts,
+    }

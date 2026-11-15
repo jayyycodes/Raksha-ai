@@ -1,8 +1,10 @@
+
 """
 GET /api/map/incidents — Geospatial Tactical Incident Mapping for Leaflet.js
 4-Ring Global Strategic Gazetteer with Event and Entity Lineage Links.
 Owner: Jay (Lead & Platform) | Stage: 2 (Mid)
 """
+import re
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Query
@@ -43,57 +45,60 @@ GLOBAL_GAZETTEER = [
     {"name": "Jaipur (South Western Cmd)", "lat": 26.9124, "lon": 75.7873, "region": "Rajasthan", "ring": 1, "keywords": ["jaipur", "rajasthan", "lok mandhan"]},
     
     # ── Ring 2: Primary Adversaries (Pakistan & China) ───────────
-    {"name": "Islamabad", "lat": 33.6844, "lon": 73.0479, "region": "Pakistan", "ring": 2, "keywords": ["islamabad", "pakistan government", "shehbaz", "sharif"]},
+    {"name": "Beijing (CMC & PLA HQ)", "lat": 39.9042, "lon": 116.4074, "region": "China", "ring": 2, "keywords": ["beijing", "china", "chinese", "central military commission", "pla", "plaaf", "plan", "xi jinping", "ministry of national defense"]},
+    {"name": "Chengdu (Western Theater Cmd)", "lat": 30.5728, "lon": 104.0668, "region": "Sichuan, China", "ring": 2, "keywords": ["chengdu", "western theater command", "wtc", "sichuan"]},
+    {"name": "Lhasa Military District", "lat": 29.6525, "lon": 91.1721, "region": "Tibet, China", "ring": 2, "keywords": ["lhasa", "tibet", "tibet military district", "shigatse"]},
+    {"name": "Hotan Airbase", "lat": 37.1123, "lon": 79.9304, "region": "Xinjiang, China", "ring": 2, "keywords": ["hotan", "hetian", "xinjiang", "kashgar", "tarim"]},
+    {"name": "Yulin Naval Base (Hainan)", "lat": 18.2200, "lon": 109.5200, "region": "South China Sea", "ring": 2, "keywords": ["hainan", "yulin", "sanya", "submarine base", "aircraft carrier"]},
+    {"name": "Islamabad", "lat": 33.6844, "lon": 73.0479, "region": "Pakistan", "ring": 2, "keywords": ["islamabad", "pakistan", "pakistani", "shehbaz", "sharif"]},
     {"name": "Rawalpindi (GHQ)", "lat": 33.5984, "lon": 73.0441, "region": "Pakistan", "ring": 2, "keywords": ["rawalpindi", "ghq", "pakistan army", "dg ispr", "asim munir"]},
     {"name": "Gwadar Port", "lat": 25.1264, "lon": 62.3225, "region": "Balochistan, Pakistan", "ring": 2, "keywords": ["gwadar", "cpec", "balochistan", "makran"]},
     {"name": "Lahore Sector", "lat": 31.5204, "lon": 74.3587, "region": "Punjab, Pakistan", "ring": 2, "keywords": ["lahore", "punjab pakistan", "wagah"]},
     {"name": "Karachi Naval Hub", "lat": 24.8607, "lon": 67.0011, "region": "Sindh, Pakistan", "ring": 2, "keywords": ["karachi", "pns", "sindh", "maritime pakistan"]},
     {"name": "Muzaffarabad", "lat": 34.3700, "lon": 73.4711, "region": "PoK", "ring": 2, "keywords": ["muzaffarabad", "pok", "azad kashmir", "neelum"]},
-    {"name": "Beijing (CMC & PLA HQ)", "lat": 39.9042, "lon": 116.4074, "region": "China", "ring": 2, "keywords": ["beijing", "central military commission", "pla", "china", "xi jinping", "ministry of national defense"]},
-    {"name": "Chengdu (Western Theater Cmd)", "lat": 30.5728, "lon": 104.0668, "region": "Sichuan, China", "ring": 2, "keywords": ["chengdu", "western theater command", "wtc", "sichuan"]},
-    {"name": "Lhasa Military District", "lat": 29.6525, "lon": 91.1721, "region": "Tibet, China", "ring": 2, "keywords": ["lhasa", "tibet", "tibet military district", "shigatse"]},
-    {"name": "Hotan Airbase", "lat": 37.1123, "lon": 79.9304, "region": "Xinjiang, China", "ring": 2, "keywords": ["hotan", "hetian", "xinjiang", "kashgar", "tarim"]},
-    {"name": "Yulin Naval Base (Hainan)", "lat": 18.2200, "lon": 109.5200, "region": "South China Sea", "ring": 2, "keywords": ["hainan", "yulin", "sanya", "submarine base", "aircraft carrier"]},
     
     # ── Ring 3: Regional Periphery ───────────────────────────────
-    {"name": "Kathmandu", "lat": 27.7172, "lon": 85.3240, "region": "Nepal", "ring": 3, "keywords": ["nepal", "kathmandu", "tihar", "laxmi puja", "nea", "oli", "himalayan"]},
-    {"name": "Dhaka", "lat": 23.8103, "lon": 90.4125, "region": "Bangladesh", "ring": 3, "keywords": ["dhaka", "bangladesh", "hasina", "yunus", "biman"]},
+    {"name": "Kathmandu", "lat": 27.7172, "lon": 85.3240, "region": "Nepal", "ring": 3, "keywords": ["nepal", "nepali", "nepalese", "kathmandu", "tihar", "laxmi puja", "nea", "oli", "himalayan"]},
+    {"name": "Dhaka", "lat": 23.8103, "lon": 90.4125, "region": "Bangladesh", "ring": 3, "keywords": ["dhaka", "bangladesh", "bangladeshi", "hasina", "yunus", "biman"]},
     {"name": "Chittagong Port", "lat": 22.3569, "lon": 91.7832, "region": "Bangladesh", "ring": 3, "keywords": ["chittagong", "cox's bazar", "bay of bengal", "matarbari"]},
-    {"name": "Colombo", "lat": 6.9271, "lon": 79.8612, "region": "Sri Lanka", "ring": 3, "keywords": ["colombo", "sri lanka", "dissanayake", "wickremesinghe"]},
+    {"name": "Colombo", "lat": 6.9271, "lon": 79.8612, "region": "Sri Lanka", "ring": 3, "keywords": ["colombo", "sri lanka", "sri lankan", "dissanayake", "wickremesinghe"]},
     {"name": "Hambantota Port", "lat": 6.1246, "lon": 81.1185, "region": "Southern Sri Lanka", "ring": 3, "keywords": ["hambantota", "sri lanka port"]},
-    {"name": "Kabul", "lat": 34.5553, "lon": 69.2075, "region": "Afghanistan", "ring": 3, "keywords": ["kabul", "afghanistan", "taliban", "tolo", "kandahar"]},
+    {"name": "Kabul", "lat": 34.5553, "lon": 69.2075, "region": "Afghanistan", "ring": 3, "keywords": ["kabul", "afghanistan", "afghan", "taliban", "tolo", "kandahar"]},
     {"name": "Naypyidaw", "lat": 19.7633, "lon": 96.0785, "region": "Myanmar", "ring": 3, "keywords": ["naypyidaw", "myanmar", "burma", "junta", "yangon", "sittwe"]},
     {"name": "Male", "lat": 4.1755, "lon": 73.5093, "region": "Maldives", "ring": 3, "keywords": ["maldives", "male", "muizzu"]},
     {"name": "Thimphu", "lat": 27.4728, "lon": 89.6393, "region": "Bhutan", "ring": 3, "keywords": ["thimphu", "bhutan", "doklam", "paro"]},
     
     # ── Ring 4: Strategic Maritime Chokepoints & Global Powers ───
+    {"name": "South China Sea", "lat": 12.0000, "lon": 114.0000, "region": "Indo-Pacific", "ring": 4, "keywords": ["south china sea", "spratly", "paracel", "nine-dash"]},
+    {"name": "Taipei", "lat": 25.0330, "lon": 121.5654, "region": "Taiwan Strait", "ring": 4, "keywords": ["taiwan", "taiwanese", "taipei", "taiwan strait", "pla air defense"]},
     {"name": "Strait of Malacca", "lat": 2.5000, "lon": 101.5000, "region": "Maritime Chokepoint", "ring": 4, "keywords": ["malacca", "singapore strait", "sumatra", "chokepoint"]},
     {"name": "Bab-el-Mandeb", "lat": 12.5800, "lon": 43.3300, "region": "Red Sea / Gulf of Aden", "ring": 4, "keywords": ["bab-el-mandeb", "red sea", "houthi", "gulf of aden", "yemen"]},
-    {"name": "Strait of Hormuz", "lat": 26.5667, "lon": 56.2500, "region": "Persian Gulf", "ring": 4, "keywords": ["hormuz", "persian gulf", "oman", "uae"]},
+    {"name": "Strait of Hormuz", "lat": 26.5667, "lon": 56.2500, "region": "Persian Gulf", "ring": 4, "keywords": ["hormuz", "strait of hormuz", "persian gulf", "sultanate of oman", "oman", "uae"]},
     {"name": "Diego Garcia", "lat": -7.3195, "lon": 72.4228, "region": "Central Indian Ocean", "ring": 4, "keywords": ["diego garcia", "chagos", "us naval base", "bomber base"]},
-    {"name": "South China Sea", "lat": 12.0000, "lon": 114.0000, "region": "Indo-Pacific", "ring": 4, "keywords": ["south china sea", "spratly", "paracel", "nine-dash"]},
-    {"name": "Taipei", "lat": 25.0330, "lon": 121.5654, "region": "Taiwan Strait", "ring": 4, "keywords": ["taiwan", "taipei", "taiwan strait", "pla air defense"]},
     {"name": "Washington D.C.", "lat": 38.9072, "lon": -77.0369, "region": "United States", "ring": 4, "keywords": ["washington", "pentagon", "white house", "united states", "us navy", "state department"]},
-    {"name": "Moscow", "lat": 55.7558, "lon": 37.6173, "region": "Russia", "ring": 4, "keywords": ["moscow", "kremlin", "russia", "putin", "s-400"]},
-    {"name": "Tehran", "lat": 35.6892, "lon": 51.3890, "region": "Iran", "ring": 4, "keywords": ["tehran", "iran", "irgc"]},
+    {"name": "Moscow", "lat": 55.7558, "lon": 37.6173, "region": "Russia", "ring": 4, "keywords": ["moscow", "kremlin", "russia", "russian", "putin", "s-400"]},
+    {"name": "Tehran", "lat": 35.6892, "lon": 51.3890, "region": "Iran", "ring": 4, "keywords": ["tehran", "iran", "iranian", "irgc"]},
 ]
 
 
 def _match_gazetteer(title: str, content: str, source_country: Optional[str], ring: int) -> dict:
-    """Accurately match article to 4-Ring Global Gazetteer with fallback based on country/ring."""
+    """Accurately match article to 4-Ring Global Gazetteer using word-boundary regex."""
     search_text = f"{title} {content[:400]}".lower()
 
-    # 1. Exact keyword match across gazetteer
+    # 1. Match with strict regex word boundaries to avoid false substring collisions (e.g. 'oman' in 'businesswoman')
     for loc in GLOBAL_GAZETTEER:
-        if any(k in search_text for k in loc["keywords"]):
-            return loc
+        for k in loc["keywords"]:
+            # Word boundary matching
+            pattern = rf"\b{re.escape(k.lower())}\b"
+            if re.search(pattern, search_text):
+                return loc
 
     # 2. Regional/Country fallback to avoid misattributing domestic/regional news to the wrong border
     c_lower = (source_country or "").lower()
     if "pakistan" in c_lower or ring == 2:
         return next((l for l in GLOBAL_GAZETTEER if l["name"] == "Islamabad"), GLOBAL_GAZETTEER[18])
     if "china" in c_lower:
-        return next((l for l in GLOBAL_GAZETTEER if l["name"] == "Beijing (CMC & PLA HQ)"), GLOBAL_GAZETTEER[24])
+        return next((l for l in GLOBAL_GAZETTEER if l["name"] == "Beijing (CMC & PLA HQ)"), GLOBAL_GAZETTEER[18])
     if "nepal" in c_lower or ring == 3:
         return next((l for l in GLOBAL_GAZETTEER if l["name"] == "Kathmandu"), GLOBAL_GAZETTEER[29])
     if "bangladesh" in c_lower:
@@ -105,7 +110,7 @@ def _match_gazetteer(title: str, content: str, source_country: Optional[str], ri
     if "myanmar" in c_lower:
         return next((l for l in GLOBAL_GAZETTEER if l["name"] == "Naypyidaw"), GLOBAL_GAZETTEER[35])
     if ring == 4:
-        return next((l for l in GLOBAL_GAZETTEER if l["name"] == "Strait of Malacca"), GLOBAL_GAZETTEER[38])
+        return next((l for l in GLOBAL_GAZETTEER if l["name"] == "Strait of Malacca"), GLOBAL_GAZETTEER[40])
 
     # Default Indian Command HQ for Ring 1 articles
     return next((l for l in GLOBAL_GAZETTEER if l["name"] == "New Delhi (HQ)"), GLOBAL_GAZETTEER[11])
