@@ -7,6 +7,9 @@ export interface Article {
   id: number;
   title: string;
   summary: string;
+  positive_impact_in?: string;
+  negative_impact_in?: string;
+  strategic_implications?: string;
   url: string;
   source_name: string;
   ring: RingId;
@@ -54,7 +57,11 @@ export interface SourceHealth {
 export interface SystemStats {
   total_articles: number;
   todays_articles: number;
+  latest_batch_articles?: number;
   processed_articles: number;
+  total_sources?: number;
+  active_sources?: number;
+  sources_with_data?: number;
   last_scrape_at: string | null;
   per_ring: Record<string, number>;
   per_source: Array<{ id: number; name: string; count: number }>;
@@ -89,6 +96,10 @@ export interface MapIncident {
   article_id?: number;
   source_name?: string;
   url?: string;
+  summary?: string;
+  event_id?: number;
+  event_title?: string;
+  related_entities?: Array<{ id: number; name: string; type: string }>;
   occurred_at: string;
 }
 

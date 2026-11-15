@@ -109,6 +109,16 @@ def get_entity_graph(
     db=Depends(get_db),
 ):
     """Interactive entity network graph for Cytoscape.js exploration."""
+    # Normalize Query objects when invoked directly in tests/scripts
+    if not isinstance(ring, int):
+        ring = None
+    if not isinstance(entity_type, str):
+        entity_type = None
+    if not isinstance(q, str):
+        q = None
+    if not isinstance(limit, int):
+        limit = 100
+
     _ensure_seed_graph_if_empty(db)
 
     where_clauses = []

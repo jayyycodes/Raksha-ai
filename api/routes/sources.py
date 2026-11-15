@@ -39,15 +39,30 @@ def sources_health(db=Depends(get_db)):
     """Per-source freshness across all registered monitoring outlets."""
     rows = db.execute(
         text("""
-            SELECT s.id AS source_id, s.name, s.ring, s.language, s.country, s.url, s.rss_url,
-                   COALESCE(sh.last_fetched, s.last_scraped_at) AS last_fetched,
-                   COALESCE(sh.last_success, s.last_scraped_at) AS last_success,
-                   COALESCE(sh.article_count, COUNT(a.id)) AS article_count,
-                   COALESCE(sh.status, CASE WHEN s.is_active THEN 'operational' ELSE 'inactive' END) AS status
+            SELECT s.id,
+                   s.id AS source_id,
+                   s.name,
+                   s.ring,
+                   s.language,
+                   s.country,
+                   s.url,
+                   s.url AS source_url,
+                   s.rss_url,
+                   COALESCE(sh.last_fetched, MAX(a.scraped_at), s.last_scraped_at) AS last_collected_at,
+                   COALESCE(sh.last_fetched, MAX(a.scraped_at), s.last_scraped_at) AS last_fetched,
+                   COALESCE(sh.last_success, MAX(a.scraped_at), s.last_scraped_at) AS last_success_at,
+                   COALESCE(sh.last_success, MAX(a.scraped_at), s.last_scraped_at) AS last_success,
+                   COUNT(a.id) AS total_articles,
+                   COUNT(a.id) AS article_count,
+                   COUNT(a.id) FILTER (WHERE a.scraped_at >= NOW() - INTERVAL '24 hours' OR a.published_at >= NOW() - INTERVAL '24 hours') AS articles_today,
+                   COALESCE(sh.status, CASE WHEN s.is_active THEN 'ok' ELSE 'failed' END) AS status,
+                   sh.last_error,
+                   COALESCE(sh.retries, 0) AS retries
             FROM sources s
             LEFT JOIN source_health sh ON sh.source_id = s.id
             LEFT JOIN articles a ON a.source_id = s.id
-            GROUP BY s.id, s.name, s.ring, s.language, s.country, s.url, s.rss_url, sh.last_fetched, sh.last_success, sh.article_count, sh.status
+            GROUP BY s.id, s.name, s.ring, s.language, s.country, s.url, s.rss_url,
+                     sh.last_fetched, sh.last_success, sh.status, sh.last_error, sh.retries
             ORDER BY s.ring ASC, s.name ASC
         """)
     ).fetchall()

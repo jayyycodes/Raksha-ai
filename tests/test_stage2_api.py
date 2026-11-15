@@ -71,6 +71,12 @@ def test_profiles_list_and_detail(client):
 
 
 def test_review_queue_and_action(client):
+    from common.db import get_db
+    from sqlalchemy import text
+    with get_db() as db:
+        db.execute(text("UPDATE merge_suggestions SET status = 'pending' WHERE id = (SELECT min(id) FROM merge_suggestions)"))
+        db.commit()
+
     res = client.get("/api/review")
     assert res.status_code == 200
     data = res.json()
