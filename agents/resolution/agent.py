@@ -13,6 +13,13 @@ import re
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from agents.base import BaseAgent
+from agents.resolution.feedback import (
+    FeedbackDecision,
+    FeedbackRecord,
+    ResolutionFeedbackStore,
+    normalize_entity_name,
+    normalize_workspace_id,
+)
 from common.logger import get_logger
 from common.schemas.articles import EntityOut
 from common.schemas.provenance import ClaimStatus, Provenance, SourceType
@@ -328,8 +335,9 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
     name: str = "resolution_agent"
     version: str = "0.2.0"
 
-    def __init__(self):
+    def __init__(self, feedback_store: Optional[ResolutionFeedbackStore] = None):
         super().__init__()
+        self._feedback_store: ResolutionFeedbackStore = feedback_store or ResolutionFeedbackStore()
         # Invert canonical alias map for exact lookup: normalized_alias -> (canonical, etype, context_desc)
         self._alias_to_canonical: Dict[str, Tuple[str, str, str]] = {}
         # Inverted romanized transliteration map
@@ -347,6 +355,24 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 self._alias_to_canonical[norm_alias] = (canonical, etype, context_desc)
                 translit_alias = normalize_indic_romanization_variants(alias)
                 self._translit_to_canonical[translit_alias] = (canonical, etype, context_desc)
+
+    @property
+    def feedback_store(self) -> ResolutionFeedbackStore:
+        """Access the isolated feedback store."""
+        return self._feedback_store
+
+    def set_feedback_store(self, store: ResolutionFeedbackStore) -> None:
+        """Inject an isolated feedback store instance."""
+        if not isinstance(store, ResolutionFeedbackStore):
+            raise TypeError(f"Expected ResolutionFeedbackStore, got {type(store).__name__}")
+        self._feedback_store = store
+
+    def add_feedback_records(self, records: Union[FeedbackRecord, List[FeedbackRecord]]) -> None:
+        """Ingest feedback records into the agent's feedback store."""
+        if isinstance(records, FeedbackRecord):
+            self._feedback_store.add_record(records)
+        else:
+            self._feedback_store.add_records(records)
 
     def _get_canonical_embedding(self, canonical_name: str, context_desc: str) -> Optional[List[float]]:
         """Retrieve or lazily compute 768-dim context embedding for canonical entity."""
@@ -366,15 +392,18 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
         raw_name: str,
         entity_type_hint: Optional[str] = None,
         context: Optional[str] = None,
+        workspace_id: Optional[Union[int, str]] = None,
     ) -> Dict[str, Any]:
         """
         Resolve a single entity name into its canonical identity and action tier.
         Optionally uses surrounding textual context for dense semantic verification.
+        Enforces isolated human feedback rules (positive aliases & negative constraints).
         """
         trimmed = raw_name.strip()
         clean_name = PREFIX_PATTERN.sub("", trimmed).strip()
         norm_name = normalize_entity_name(trimmed)
         translit_name = normalize_indic_romanization_variants(trimmed)
+        norm_ws = normalize_workspace_id(workspace_id)
 
         if not norm_name:
             return {
@@ -386,9 +415,10 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "decision": "separate",
                 "match_method": "empty_input",
                 "explanation": "Empty entity string",
+                "workspace_id": norm_ws,
             }
 
-        # Guard 1: Check for common English dictionary words
+        # Guard 1: Check for common English dictionary words (cannot be bypassed by feedback)
         tokens = norm_name.split()
         if len(tokens) == 1 and tokens[0] in COMMON_ENGLISH_WORDS:
             return {
@@ -400,6 +430,7 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "decision": "separate",
                 "match_method": "common_english_word_guard",
                 "explanation": f"Common English word '{tokens[0]}' protected from transliteration/alias merging.",
+                "workspace_id": norm_ws,
             }
 
         # Guard 2: Check for ambiguous common single-token generic names
@@ -413,6 +444,112 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "decision": "separate",
                 "match_method": "ambiguous_common_name_guard",
                 "explanation": f"Single generic token '{tokens[0]}' held separate without corroborating full identity.",
+                "workspace_id": norm_ws,
+            }
+
+        # 0. Check positive feedback overlay (runtime accepted aliases)
+        pos_record, pos_reason = self._feedback_store.get_positive_alias(trimmed, workspace_id=norm_ws)
+        if pos_record:
+            can_name = pos_record.target_canonical
+            # Authoritative defense canonical registry validation
+            # NOTE: CANONICAL_DEFENSE_ENTITIES is an authoritative domain registry specifically for defense
+            # ORGANISATION, LOCATION, and EQUIPMENT entities (Stage 2/3 Floor 2 scope).
+            # It is NOT a universal registry for all entity types (e.g., PERSON and EVENT profiles are
+            # managed in entity_nodes / ProfilingAgent). For safety, feedback targets outside this defense
+            # registry or specifying unsupported entity types fail closed to prevent unverified auto-linking.
+            auth_entry = None
+            auth_can_name = None
+            for c_name, c_tuple in CANONICAL_DEFENSE_ENTITIES.items():
+                if normalize_entity_name(c_name) == normalize_entity_name(can_name):
+                    auth_entry = c_tuple
+                    auth_can_name = c_name
+                    break
+
+            if auth_entry is None or auth_entry[0] not in ("ORGANISATION", "LOCATION", "EQUIPMENT"):
+                # Target canonical not found in authoritative defense ontology -> fail closed
+                dec_id = str(pos_record.decision_id)
+                return {
+                    "raw_name": raw_name,
+                    "canonical_name": clean_name or trimmed,
+                    "entity_type": pos_record.entity_type or entity_type_hint or "UNKNOWN",
+                    "confidence": 0.40,
+                    "action": "separate",
+                    "decision": "separate",
+                    "match_method": "invalid_canonical_target_rejected",
+                    "explanation": f"Target canonical '{can_name}' not found in canonical defense registry; failed closed.",
+                    "feedback_decision_id": dec_id,
+                    "analyst_id": pos_record.analyst_id,
+                    "workspace_id": norm_ws,
+                    "claim_status": ClaimStatus.REPORTED.value,
+                }
+
+            auth_etype = auth_entry[0]
+            dec_id = str(pos_record.decision_id)
+            # Validate entity type compatibility if provided in feedback
+            if pos_record.entity_type and pos_record.entity_type.upper() != auth_etype.upper():
+                return {
+                    "raw_name": raw_name,
+                    "canonical_name": clean_name or trimmed,
+                    "entity_type": pos_record.entity_type,
+                    "confidence": 0.40,
+                    "action": "separate",
+                    "decision": "separate",
+                    "match_method": "entity_type_mismatch_rejected",
+                    "explanation": f"Entity type mismatch for target '{can_name}': expected {auth_etype}, got {pos_record.entity_type}; failed closed.",
+                    "feedback_decision_id": dec_id,
+                    "analyst_id": pos_record.analyst_id,
+                    "workspace_id": norm_ws,
+                    "claim_status": ClaimStatus.REPORTED.value,
+                }
+
+            # Validate incoming entity_type_hint if provided
+            if entity_type_hint and entity_type_hint.upper() != auth_etype.upper():
+                return {
+                    "raw_name": raw_name,
+                    "canonical_name": clean_name or trimmed,
+                    "entity_type": entity_type_hint,
+                    "confidence": 0.40,
+                    "action": "separate",
+                    "decision": "separate",
+                    "match_method": "entity_type_mismatch_rejected",
+                    "explanation": f"Input entity type hint '{entity_type_hint}' conflicts with canonical target type '{auth_etype}'; failed closed.",
+                    "feedback_decision_id": dec_id,
+                    "analyst_id": pos_record.analyst_id,
+                    "workspace_id": norm_ws,
+                    "claim_status": ClaimStatus.REPORTED.value,
+                }
+
+            is_rej, rej_rec, rej_reason = self._feedback_store.is_pair_rejected(trimmed, auth_can_name, workspace_id=norm_ws)
+            if is_rej:
+                dec_id = rej_rec.decision_id if rej_rec else "conflict"
+                return {
+                    "raw_name": raw_name,
+                    "canonical_name": clean_name or trimmed,
+                    "entity_type": auth_etype,
+                    "confidence": 0.40,
+                    "action": "separate",
+                    "decision": "separate",
+                    "match_method": "negative_feedback_constraint",
+                    "explanation": f"Pair ('{trimmed}', '{auth_can_name}') blocked by negative feedback constraint (decision {dec_id}).",
+                    "feedback_decision_id": dec_id,
+                    "analyst_id": rej_rec.analyst_id if rej_rec else None,
+                    "workspace_id": norm_ws,
+                    "claim_status": ClaimStatus.DISPUTED.value,
+                }
+
+            return {
+                "raw_name": raw_name,
+                "canonical_name": auth_can_name,
+                "entity_type": auth_etype,
+                "confidence": 0.98,
+                "action": "auto_link",
+                "decision": "auto_link",
+                "match_method": "accepted_feedback_alias",
+                "explanation": f"Human-verified accepted alias -> '{auth_can_name}' (decision {pos_record.decision_id}).",
+                "feedback_decision_id": str(pos_record.decision_id),
+                "analyst_id": pos_record.analyst_id,
+                "workspace_id": norm_ws,
+                "claim_status": ClaimStatus.ANALYST_VERIFIED.value,
             }
 
         # Generate mention context embedding if context is provided
@@ -428,6 +565,26 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
         # 1. Exact alias / canonical match (Strong match tier)
         if norm_name in self._alias_to_canonical:
             canonical, etype, context_desc = self._alias_to_canonical[norm_name]
+
+            # Check negative feedback constraint
+            is_rej, rej_rec, rej_reason = self._feedback_store.is_pair_rejected(trimmed, canonical, workspace_id=norm_ws)
+            if is_rej:
+                dec_id = rej_rec.decision_id if rej_rec else "conflict"
+                return {
+                    "raw_name": raw_name,
+                    "canonical_name": clean_name or trimmed,
+                    "entity_type": etype,
+                    "confidence": 0.40,
+                    "action": "separate",
+                    "decision": "separate",
+                    "match_method": "negative_feedback_constraint",
+                    "explanation": f"Pair ('{trimmed}', '{canonical}') explicitly rejected by analyst verification (decision {dec_id}).",
+                    "feedback_decision_id": dec_id,
+                    "analyst_id": rej_rec.analyst_id if rej_rec else None,
+                    "workspace_id": norm_ws,
+                    "claim_status": ClaimStatus.DISPUTED.value,
+                }
+
             score = 0.98
             explanation = f"Exact match with canonical defense entity '{canonical}'."
 
@@ -450,11 +607,32 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "decision": "auto_link",
                 "match_method": "exact_defense_alias",
                 "explanation": explanation,
+                "workspace_id": norm_ws,
             }
 
         # 2. Indic Romanization transliteration match
         if translit_name in self._translit_to_canonical:
             canonical, etype, context_desc = self._translit_to_canonical[translit_name]
+
+            # Check negative feedback constraint
+            is_rej, rej_rec, rej_reason = self._feedback_store.is_pair_rejected(trimmed, canonical, workspace_id=norm_ws)
+            if is_rej:
+                dec_id = rej_rec.decision_id if rej_rec else "conflict"
+                return {
+                    "raw_name": raw_name,
+                    "canonical_name": clean_name or trimmed,
+                    "entity_type": etype,
+                    "confidence": 0.40,
+                    "action": "separate",
+                    "decision": "separate",
+                    "match_method": "negative_feedback_constraint",
+                    "explanation": f"Pair ('{trimmed}', '{canonical}') explicitly rejected by analyst verification (decision {dec_id}).",
+                    "feedback_decision_id": dec_id,
+                    "analyst_id": rej_rec.analyst_id if rej_rec else None,
+                    "workspace_id": norm_ws,
+                    "claim_status": ClaimStatus.DISPUTED.value,
+                }
+
             score = 0.92
             explanation = f"Transliteration variant match -> '{canonical}'."
 
@@ -477,6 +655,7 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "decision": "auto_link",
                 "match_method": "indic_romanization_transliteration",
                 "explanation": explanation,
+                "workspace_id": norm_ws,
             }
 
         # 3. Fuzzy match against known aliases with contextual embedding support
@@ -485,6 +664,7 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
         best_desc = ""
         best_score = 0.0
         best_alias = ""
+        blocked_rejected_candidate: Optional[Tuple[str, float, Optional[FeedbackRecord]]] = None
 
         for alias, (canonical, etype, desc) in self._alias_to_canonical.items():
             if entity_type_hint and etype != entity_type_hint:
@@ -494,6 +674,13 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
             # Token inclusion bonus
             if len(norm_name) > 3 and norm_name in alias:
                 score = max(score, 0.85)
+
+            # Check negative feedback constraint
+            is_rej, rej_rec, rej_reason = self._feedback_store.is_pair_rejected(trimmed, canonical, workspace_id=norm_ws)
+            if is_rej:
+                if score >= 0.65 and (blocked_rejected_candidate is None or score > blocked_rejected_candidate[1]):
+                    blocked_rejected_candidate = (canonical, score, rej_rec)
+                continue
 
             if score > best_score:
                 best_score = score
@@ -520,6 +707,26 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
 
         adjusted_score = round(min(1.0, max(0.0, best_score + ctx_bonus)), 4)
 
+        # If fuzzy match failed to find a non-rejected canonical, but an analyst-rejected
+        # canonical was prevented from matching, report the negative constraint.
+        if adjusted_score < 0.65 and blocked_rejected_candidate is not None:
+            blk_can, blk_score, blk_rec = blocked_rejected_candidate
+            dec_id = blk_rec.decision_id if blk_rec else "conflict"
+            return {
+                "raw_name": raw_name,
+                "canonical_name": clean_name or trimmed,
+                "entity_type": best_type,
+                "confidence": 0.40,
+                "action": "separate",
+                "decision": "separate",
+                "match_method": "negative_feedback_constraint",
+                "explanation": f"Pair ('{trimmed}', '{blk_can}') auto-link prevented by negative feedback constraint (decision {dec_id}).",
+                "feedback_decision_id": dec_id,
+                "analyst_id": blk_rec.analyst_id if blk_rec else None,
+                "workspace_id": norm_ws,
+                "claim_status": ClaimStatus.DISPUTED.value,
+            }
+
         # Conservative Decision Logic:
         # Strong match: >= 0.88 -> auto_link
         # Medium match: 0.65 to 0.87 -> review_queue
@@ -533,6 +740,29 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
             method = "fuzzy_medium_review"
             explanation = f"Moderate similarity ({adjusted_score:.2f}) with alias '{best_alias}'. Analyst review required."
         else:
+            # Check if this mention has an active negative constraint or conflict
+            has_nc, nc_rec, nc_reason, nc_target = self._feedback_store.get_negative_constraint_or_conflict(trimmed, workspace_id=norm_ws)
+            if has_nc:
+                dec_id = nc_rec.decision_id if nc_rec else "conflict"
+                method = "negative_feedback_constraint"
+                best_canonical = clean_name or trimmed
+                adjusted_score = 0.40
+                explanation = f"Pair ('{trimmed}', '{nc_target}') auto-link prevented by negative feedback constraint (decision {dec_id})."
+                return {
+                    "raw_name": raw_name,
+                    "canonical_name": best_canonical,
+                    "entity_type": best_type,
+                    "confidence": adjusted_score,
+                    "action": "separate",
+                    "decision": "separate",
+                    "match_method": method,
+                    "explanation": explanation,
+                    "feedback_decision_id": dec_id,
+                    "analyst_id": nc_rec.analyst_id if nc_rec else None,
+                    "workspace_id": norm_ws,
+                    "claim_status": ClaimStatus.DISPUTED.value,
+                }
+
             action = "separate"
             method = "unmatched_separate"
             best_canonical = clean_name or trimmed
@@ -551,33 +781,49 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
             "decision": action,
             "match_method": method,
             "explanation": explanation,
+            "workspace_id": norm_ws,
         }
 
     def run(
         self,
         input_data: Union[List[str], List[Dict[str, Any]], List[EntityOut]],
+        workspace_id: Optional[Union[int, str]] = None,
     ) -> Dict[str, Any]:
         """
         Execute entity resolution over a list of entity mentions or names.
+        Caller-supplied workspace_id is strictly enforced across all items;
+        individual input dictionary workspace_id overrides are completely ignored.
         """
         if not isinstance(input_data, list):
             raise TypeError(f"ResolutionAgent expects list input, got {type(input_data).__name__}")
 
+        norm_ws = normalize_workspace_id(workspace_id)
         resolved_list: List[Dict[str, Any]] = []
 
         for item in input_data:
             if isinstance(item, str):
-                res = self.resolve_entity(item)
+                res = self.resolve_entity(item, workspace_id=norm_ws)
             elif isinstance(item, EntityOut):
-                res = self.resolve_entity(item.entity_value, entity_type_hint=item.entity_type)
+                res = self.resolve_entity(item.entity_value, entity_type_hint=item.entity_type, workspace_id=norm_ws)
             elif isinstance(item, dict):
                 raw_name = item.get("entity_value") or item.get("raw_name") or item.get("name") or ""
                 etype = item.get("entity_type")
                 context = item.get("context") or item.get("sentence")
-                res = self.resolve_entity(str(raw_name), entity_type_hint=etype, context=context)
+                # Strictly use trusted caller-supplied workspace_id
+                res = self.resolve_entity(str(raw_name), entity_type_hint=etype, context=context, workspace_id=norm_ws)
             else:
                 logger.warning("Skipping unknown item type in entity resolution: %s", type(item))
                 continue
+
+            # Set individual item claim_status
+            if res.get("match_method") == "accepted_feedback_alias":
+                res["claim_status"] = ClaimStatus.ANALYST_VERIFIED.value
+            elif res.get("match_method") == "negative_feedback_constraint":
+                res["claim_status"] = ClaimStatus.DISPUTED.value
+            elif res.get("match_method") in ("exact_defense_alias", "indic_romanization_transliteration"):
+                res["claim_status"] = ClaimStatus.OFFICIAL_DESIGNATION.value
+            elif "claim_status" not in res:
+                res["claim_status"] = ClaimStatus.REPORTED.value
 
             resolved_list.append(res)
 
@@ -585,12 +831,22 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
         if resolved_list:
             avg_conf = round(sum(r["confidence"] for r in resolved_list) / len(resolved_list), 4)
 
+        # Batch-level claim status: conservative.
+        # Only mark ANALYST_VERIFIED if ALL items are positively analyst-verified (accepted aliases).
+        # Rejections dispute an association but do not establish a verified positive identity.
+        # NOTE: Provenance schema is currently batch-level; individual item claim_status is preserved in resolved_entities.
+        all_positively_verified = bool(resolved_list) and all(
+            r.get("match_method") == "accepted_feedback_alias"
+            for r in resolved_list
+        )
+        claim_st = ClaimStatus.ANALYST_VERIFIED if all_positively_verified else ClaimStatus.OFFICIAL_DESIGNATION
+
         prov = Provenance(
             source_ids=[],
             method="defense_ontology_transliteration_and_contextual_resolution",
             model_version=f"{self.name}:{self.version}",
             confidence=avg_conf,
-            claim_status=ClaimStatus.OFFICIAL_DESIGNATION,
+            claim_status=claim_st,
             source_type=SourceType.PUBLIC,
         )
 
