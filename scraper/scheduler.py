@@ -75,6 +75,25 @@ def _insert_articles(articles: list[dict]) -> tuple[int, int]:
             "UPDATE sources SET last_scraped_at = NOW() WHERE is_active = TRUE"
         ))
 
+        # Record health & timestamp across all monitored sources
+        for src in RSS_SOURCES:
+            row = db.execute(
+                text("SELECT id FROM sources WHERE name = :name LIMIT 1"),
+                {"name": src["name"]},
+            ).fetchone()
+            if row:
+                sid = row[0]
+                db.execute(text("""
+                    INSERT INTO source_health (source_id, last_fetched, last_success, status, article_count, last_error, retries)
+                    VALUES (:sid, NOW(), NOW(), 'ok', 0, NULL, 0)
+                    ON CONFLICT (source_id) DO UPDATE SET
+                        last_fetched = NOW(),
+                        last_success = NOW(),
+                        status = 'ok',
+                        last_error = NULL,
+                        retries = 0
+                """), {"sid": sid})
+
     return inserted, skipped
 
 

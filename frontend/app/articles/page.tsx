@@ -6,6 +6,7 @@ import { ArticleFilters } from '@/components/articles/ArticleFilters';
 import { Pagination } from '@/components/shared/Pagination';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ArticleCardSkeleton } from '@/components/shared/LoadingSkeleton';
+import { RefreshFeedButton } from '@/components/articles/RefreshFeedButton';
 
 interface ArticlePageProps {
   searchParams: {
@@ -122,10 +123,17 @@ export default async function ArticlesPage({ searchParams }: ArticlePageProps) {
 
       {/* Article List with Suspense Loading State */}
       <section aria-labelledby="feed-heading">
-        <h2 id="feed-heading" className="text-xs font-bold uppercase tracking-wider text-text-muted mb-3 flex items-center justify-between">
-          <span>Continuous Open-Source Stream</span>
-          <span className="text-[11px] font-normal normal-case">Updated every 4 hours</span>
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h2 id="feed-heading" className="text-xs font-bold uppercase tracking-wider text-text-muted">
+            Continuous Open-Source Stream
+          </h2>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-normal text-text-muted hidden sm:inline">
+              Automated 4h cycle · Live on-demand sync
+            </span>
+            <RefreshFeedButton variant="primary" />
+          </div>
+        </div>
         <Suspense fallback={<ArticleCardSkeleton count={4} />}>
           <ArticleListContent searchParams={searchParams} />
         </Suspense>

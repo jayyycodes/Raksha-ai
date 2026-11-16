@@ -3,7 +3,7 @@ GET /api/sources        — all sources with last scraped time
 GET /api/sources/health — per-source freshness and health status
 Owner: Jay | Stage: 1 MVP
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy import text
 
 from common.db import get_db as _get_db
@@ -67,3 +67,18 @@ def sources_health(db=Depends(get_db)):
         """)
     ).fetchall()
     return [dict(r._mapping) for r in rows]
+
+
+@router.post("/refresh")
+def trigger_sources_refresh(background_tasks: BackgroundTasks):
+    """
+    On-demand live intelligence refresh:
+    Triggers an immediate scrape cycle across all 40 monitored sources,
+    deduplicates and processes new articles through the NLP pipeline.
+    """
+    from scraper.scheduler import run_scrape_cycle
+    background_tasks.add_task(run_scrape_cycle)
+    return {
+        "status": "triggered",
+        "message": "Live scrape cycle initiated across all 40 monitored sources.",
+    }

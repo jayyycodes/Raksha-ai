@@ -324,6 +324,16 @@ export async function triggerAnomalyScan(): Promise<boolean> {
   }
 }
 
+export async function triggerSourcesRefresh(): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/sources/refresh`, { method: 'POST' });
+    return res.ok;
+  } catch (err) {
+    console.error('Error refreshing sources:', err);
+    return false;
+  }
+}
+
 export async function fetchWatchlists(): Promise<import('./types').WatchlistItem[]> {
   try {
     const res = await fetch(`${BASE_URL}/api/watchlists`, { cache: 'no-store' });
