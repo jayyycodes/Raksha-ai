@@ -86,7 +86,7 @@ WEAPON_DESIGNATION_PATTERN = re.compile(
 DEFENSE_PATTERNS: list[tuple[re.Pattern, str, float]] = [
     # Strategic Locations & Friction Points
     (re.compile(r"\b(?:Line of Actual Control|LAC)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
-    (re.compile(r"\b(?:Line of Control|LoC|LOC)\b"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:(?i:Line of Control)|LoC|LOC)\b"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Siachen(?:\s+Glacier)?)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Galwan(?:\s+Valley)?)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Depsang(?:\s+Plains)?)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),

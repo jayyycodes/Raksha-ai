@@ -122,20 +122,20 @@ class TestNERExtractionSuccessAndStructure(unittest.TestCase):
     def test_successful_spacy_entity_extraction(self):
         """spaCy extracted entities are mapped correctly to target types."""
         mock_nlp = _build_mock_spacy_nlp([
-            ("Indian Army", "ORG"),
-            ("New Delhi", "GPE"),
-            ("Rajnath Singh", "PERSON"),
+            ("Western Command", "ORG"),
+            ("Shimla", "GPE"),
+            ("General Manoj Pande", "PERSON"),
         ])
 
         with patch("engine.ner._load_model", return_value=mock_nlp):
-            results = extract_entities("Rajnath Singh addressed Indian Army in New Delhi.")
+            results = extract_entities("General Manoj Pande addressed Western Command in Shimla.")
 
         self.assertEqual(len(results), 3)
 
         expected = [
-            {"entity_type": "ORG", "entity_value": "Indian Army", "confidence": DEFAULT_SPACY_CONFIDENCE},
-            {"entity_type": "LOCATION", "entity_value": "New Delhi", "confidence": DEFAULT_SPACY_CONFIDENCE},
-            {"entity_type": "PERSON", "entity_value": "Rajnath Singh", "confidence": DEFAULT_SPACY_CONFIDENCE},
+            {"entity_type": "ORG", "entity_value": "Western Command", "confidence": DEFAULT_SPACY_CONFIDENCE},
+            {"entity_type": "LOCATION", "entity_value": "Shimla", "confidence": DEFAULT_SPACY_CONFIDENCE},
+            {"entity_type": "PERSON", "entity_value": "General Manoj Pande", "confidence": DEFAULT_SPACY_CONFIDENCE},
         ]
 
         for exp in expected:

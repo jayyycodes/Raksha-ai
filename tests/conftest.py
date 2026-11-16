@@ -9,7 +9,7 @@ import pytest
 SAMPLE_SOURCE = {
     "name":     "BBC Asia",
     "url":      "https://www.bbc.com",
-    "rss_url":  "http://feeds.bbci.co.uk/news/world/asia/rss.xml",
+    "rss_url":  "https://feeds.bbci.co.uk/news/world/asia/rss.xml",
     "ring":     4,
     "country":  "Global",
     "language": "en",
