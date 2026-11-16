@@ -6,6 +6,7 @@ from sqlalchemy import text
 from common.db import get_db
 from common.logger import get_logger
 from scraper.sources import RSS_SOURCES
+from scraper.sources_stage3 import STAGE3_SOURCES_96
 
 logger = get_logger(__name__)
 
@@ -127,25 +128,36 @@ OFFICIAL_DESIGNATION_FACTS = [
 def seed_sources():
     with get_db() as db:
         inserted = 0
-        for source in RSS_SOURCES:
+        for src in STAGE3_SOURCES_96:
+            rss_val = src.get("rss_url") or src.get("api_endpoint") or src.get("url", "")
+            source_data = {
+                "name": src["name"],
+                "url": src.get("url", ""),
+                "rss_url": rss_val,
+                "ring": src["ring"],
+                "country": src.get("country", "India"),
+                "language": src.get("language", "en"),
+                "source_type": src.get("source_type", "rss"),
+            }
             result = db.execute(
                 text("""
-                    INSERT INTO sources (name, url, rss_url, ring, country, language)
-                    VALUES (:name, :url, :rss_url, :ring, :country, :language)
+                    INSERT INTO sources (name, url, rss_url, ring, country, language, source_type)
+                    VALUES (:name, :url, :rss_url, :ring, :country, :language, :source_type)
                     ON CONFLICT (name) DO UPDATE SET
                         url = EXCLUDED.url,
                         rss_url = EXCLUDED.rss_url,
                         ring = EXCLUDED.ring,
                         country = EXCLUDED.country,
-                        language = EXCLUDED.language
+                        language = EXCLUDED.language,
+                        source_type = EXCLUDED.source_type
                 """),
-                source,
+                source_data,
             )
             if result.rowcount:
                 inserted += 1
         logger.info(
             f"Seeded / updated {inserted} sources "
-            f"({len(RSS_SOURCES)} total in registry)"
+            f"({len(STAGE3_SOURCES_96)} total in registry)"
         )
 
 

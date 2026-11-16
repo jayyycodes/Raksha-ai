@@ -1,19 +1,43 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { SourceHealth, RingId, SourceStatusType } from '@/lib/api/types';
+import { triggerSourcesRefresh } from '@/lib/api/client';
 import { RingMarker } from '@/components/shared/RingMarker';
 import { StatusPill } from '@/components/shared/StatusPill';
 import { LanguageTag } from '@/components/shared/LanguageTag';
 import { formatIST, formatRelativeTime } from '@/lib/utils';
 
 export const SourceTable: React.FC<{ sources: SourceHealth[] }> = ({ sources }) => {
+  const router = useRouter();
   const [ringFilter, setRingFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
 
   const toggleRow = (id: number) => {
     setExpandedId((prev) => (prev === id ? null : id));
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setRefreshMessage('Initiating live scrape across all 96 monitored sources...');
+    try {
+      await triggerSourcesRefresh();
+      setRefreshMessage('Scrape cycle queued. Feeds will update as dispatches complete.');
+      setTimeout(() => {
+        router.refresh();
+      }, 1500);
+    } catch {
+      setRefreshMessage('Refresh request failed.');
+    } finally {
+      setTimeout(() => {
+        setRefreshing(false);
+        setRefreshMessage(null);
+      }, 4000);
+    }
   };
 
   const filtered = sources.filter((s) => {
@@ -21,6 +45,11 @@ export const SourceTable: React.FC<{ sources: SourceHealth[] }> = ({ sources }) 
     if (statusFilter !== 'all' && s.status !== statusFilter) return false;
     return true;
   });
+
+  const okTotal = sources.filter((s) => s.status === 'ok').length;
+  const staleTotal = sources.filter((s) => s.status === 'stale').length;
+  const emptyTotal = sources.filter((s) => s.status === 'empty').length;
+  const failedTotal = sources.filter((s) => s.status === 'failed').length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -38,10 +67,10 @@ export const SourceTable: React.FC<{ sources: SourceHealth[] }> = ({ sources }) 
               className="text-xs bg-canvas border border-border rounded px-2 py-1 text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-navy"
             >
               <option value="all">All Rings ({sources.length})</option>
-              <option value="1">Ring 1 · India</option>
-              <option value="2">Ring 2 · Adversaries</option>
-              <option value="3">Ring 3 · Regional</option>
-              <option value="4">Ring 4 · Global</option>
+              <option value="1">Ring 1 · India ({sources.filter(s => s.ring === 1).length})</option>
+              <option value="2">Ring 2 · Adversaries ({sources.filter(s => s.ring === 2).length})</option>
+              <option value="3">Ring 3 · Regional ({sources.filter(s => s.ring === 3).length})</option>
+              <option value="4">Ring 4 · Global ({sources.filter(s => s.ring === 4).length})</option>
             </select>
           </div>
 
@@ -55,19 +84,37 @@ export const SourceTable: React.FC<{ sources: SourceHealth[] }> = ({ sources }) 
               onChange={(e) => setStatusFilter(e.target.value)}
               className="text-xs bg-canvas border border-border rounded px-2 py-1 text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-navy"
             >
-              <option value="all">All Statuses</option>
-              <option value="ok">Operational</option>
-              <option value="stale">Stale (&gt;4h)</option>
-              <option value="failed">Failing</option>
-              <option value="empty">Empty</option>
+              <option value="all">All Statuses ({sources.length})</option>
+              <option value="ok">Operational ({okTotal})</option>
+              <option value="stale">Stale &gt;4h ({staleTotal})</option>
+              <option value="empty">Empty / Pending ({emptyTotal})</option>
+              <option value="failed">Failing ({failedTotal})</option>
             </select>
           </div>
         </div>
 
-        <div className="text-xs text-text-muted">
-          Showing <span className="font-semibold text-text-primary">{filtered.length}</span> of {sources.length} feeds
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold bg-primary-navy text-accent-saffron hover:bg-primary-navy/90 border border-accent-saffron/20 disabled:opacity-60 transition-colors shadow-sm"
+          >
+            <span>{refreshing ? '⏳' : '🔄'}</span>
+            <span>{refreshing ? 'Triggering...' : 'Run Live Ingest Scrape'}</span>
+          </button>
+
+          <div className="text-xs text-text-muted">
+            Showing <span className="font-semibold text-text-primary">{filtered.length}</span> of {sources.length} feeds
+          </div>
         </div>
       </div>
+
+      {refreshMessage && (
+        <div className="p-2.5 rounded bg-blue-950/20 border border-blue-800/40 text-blue-300 text-xs font-mono">
+          ℹ️ {refreshMessage}
+        </div>
+      )}
 
       {/* Source Health Table */}
       <div className="bg-card rounded-md border border-border shadow-sm overflow-hidden">
