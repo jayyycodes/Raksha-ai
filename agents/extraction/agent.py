@@ -42,6 +42,9 @@ HIGH_THREAT_EVENTS = {"border_incident", "terror_activity", "nuclear", "cyber_at
 MEDIUM_THREAT_EVENTS = {"military_movement", "naval", "aerial", "disinformation"}
 
 
+_SPACY_WARNED = False
+
+
 class ExtractionAgent(BaseAgent[Union[ArticleIn, Dict[str, Any]], ArticleAnalysisOut]):
     """
     Executes Named Entity Recognition and Event Classification on articles,
@@ -79,11 +82,12 @@ class ExtractionAgent(BaseAgent[Union[ArticleIn, Dict[str, Any]], ArticleAnalysi
             try:
                 raw_entities = extract_entities(analysis_text)
             except Exception as exc:
-                logger.warning(
-                    "Full spaCy NER unavailable, falling back to defense patterns for article %s: %s",
-                    article_id,
-                    exc,
-                )
+                global _SPACY_WARNED
+                if not _SPACY_WARNED:
+                    logger.info("spaCy optional dependency not detected; using high-precision defense pattern extractor.")
+                    _SPACY_WARNED = True
+                else:
+                    logger.debug("spaCy fallback for article %s: %s", article_id, exc)
                 seen_keys = set()
                 for pattern, etype, conf in DEFENSE_PATTERNS:
                     for match in pattern.finditer(analysis_text):
