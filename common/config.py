@@ -18,6 +18,11 @@ class Settings:
     PROXY_URL: str | None
     GROQ_API_KEY: str | None
     GROQ_MODEL: str
+    LLM_FALLBACK_API_KEY: str | None = None
+    LLM_FALLBACK_ENDPOINT: str = "https://api.openai.com/v1/chat/completions"
+    LLM_FALLBACK_MODEL: str = "gpt-4o-mini"
+    OLLAMA_HOST: str | None = None
+    OLLAMA_MODEL: str = "llama3"
 
 
 def _load() -> Settings:
@@ -32,6 +37,11 @@ def _load() -> Settings:
         PROXY_URL=os.getenv("PROXY_URL", None),
         GROQ_API_KEY=os.getenv("GROQ_API_KEY", None),
         GROQ_MODEL=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+        LLM_FALLBACK_API_KEY=os.getenv("LLM_FALLBACK_API_KEY", os.getenv("OPENAI_API_KEY", None)),
+        LLM_FALLBACK_ENDPOINT=os.getenv("LLM_FALLBACK_ENDPOINT", "https://api.openai.com/v1/chat/completions"),
+        LLM_FALLBACK_MODEL=os.getenv("LLM_FALLBACK_MODEL", "gpt-4o-mini"),
+        OLLAMA_HOST=os.getenv("OLLAMA_HOST", None),
+        OLLAMA_MODEL=os.getenv("OLLAMA_MODEL", "llama3"),
     )
 
 

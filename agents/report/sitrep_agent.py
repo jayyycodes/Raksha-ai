@@ -199,17 +199,17 @@ class GroundedSitRepAgent(BaseAgent[SitRepIn, SitRepOut]):
         sentences: List[SitRepSentence] = []
         grounding_rate = 1.0
 
-        # Attempt Groq API if available and not forced to fallback
+        prompt = (
+            f"You are a military intelligence analyst writing India's daily SitRep for {report_date.isoformat()}.\n"
+            f"CRITICAL RULE: Every single factual sentence MUST include the exact source citation in format [Source #ID] "
+            f"using only IDs provided in the articles list below. Do not make any uncited claims.\n\n"
+            f"ARTICLES:\n" + "\n".join([f"- [ID: {a['id']}] ({a.get('source_name', 'OSINT')} Ring {a.get('ring', 1)}): {a['title']}" for a in articles[:15]])
+        )
+
+        # Tier 1: Primary Groq Llama 3
         if groq_api_key and not force_fallback and len(articles) > 0:
             try:
                 import httpx
-                prompt = (
-                    f"You are a military intelligence analyst writing India's daily SitRep for {report_date.isoformat()}.\n"
-                    f"CRITICAL RULE: Every single factual sentence MUST include the exact source citation in format [Source #ID] "
-                    f"using only IDs provided in the articles list below. Do not make any uncited claims.\n\n"
-                    f"ARTICLES:\n" + "\n".join([f"- [ID: {a['id']}] ({a.get('source_name', 'OSINT')} Ring {a.get('ring', 1)}): {a['title']}" for a in articles[:15]])
-                )
-
                 response = httpx.post(
                     "https://api.groq.com/openai/v1/chat/completions",
                     headers={
@@ -233,14 +233,71 @@ class GroundedSitRepAgent(BaseAgent[SitRepIn, SitRepOut]):
                     exec_summary = f"Executive briefing for {report_date.isoformat()} generated via {self.model_name}."
                     sentences, grounding_rate = self._parse_and_verify_sentences(content, valid_article_ids)
                     used_method = f"groq_llama3:{self.model_name}"
-                else:
-                    logger.warning(f"Groq API returned HTTP {response.status_code}, falling back to deterministic synthesizer")
-                    exec_summary, sentences, grounding_rate = self._synthesize_deterministic_grounded_report(report_date, articles, top_threats)
             except Exception as e:
-                logger.warning(f"Groq API error ({e}), using fallback grounded generator")
-                exec_summary, sentences, grounding_rate = self._synthesize_deterministic_grounded_report(report_date, articles, top_threats)
-        else:
+                logger.warning(f"Groq API error ({e}), attempting secondary fallback")
+
+        # Tier 2: Secondary Cloud LLM (OpenAI / Alternative LLM hook)
+        fallback_api_key = getattr(settings, "LLM_FALLBACK_API_KEY", None) or getattr(settings, "OPENAI_API_KEY", None)
+        if not exec_summary and fallback_api_key and not force_fallback and len(articles) > 0:
+            try:
+                import httpx
+                endpoint = getattr(settings, "LLM_FALLBACK_ENDPOINT", "https://api.openai.com/v1/chat/completions")
+                fallback_model = getattr(settings, "LLM_FALLBACK_MODEL", "gpt-4o-mini")
+                response = httpx.post(
+                    endpoint,
+                    headers={
+                        "Authorization": f"Bearer {fallback_api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": fallback_model,
+                        "messages": [
+                            {"role": "system", "content": "You are Raksha AI's intelligence briefing agent. Output only grounded statements with citations."},
+                            {"role": "user", "content": prompt},
+                        ],
+                        "temperature": 0.1,
+                        "max_tokens": 1024,
+                    },
+                    timeout=15.0,
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    content = data["choices"][0]["message"]["content"]
+                    exec_summary = f"Executive briefing for {report_date.isoformat()} generated via secondary fallback ({fallback_model})."
+                    sentences, grounding_rate = self._parse_and_verify_sentences(content, valid_article_ids)
+                    used_method = f"secondary_llm:{fallback_model}"
+            except Exception as e:
+                logger.warning(f"Secondary LLM fallback error ({e}), attempting Ollama hook")
+
+        # Tier 3: Local / Offline Ollama Hook
+        ollama_host = getattr(settings, "OLLAMA_HOST", None)
+        if not exec_summary and ollama_host and not force_fallback and len(articles) > 0:
+            try:
+                import httpx
+                ollama_model = getattr(settings, "OLLAMA_MODEL", "llama3")
+                response = httpx.post(
+                    f"{ollama_host.rstrip('/')}/api/generate",
+                    json={
+                        "model": ollama_model,
+                        "prompt": prompt,
+                        "stream": False,
+                    },
+                    timeout=20.0,
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    content = data.get("response", "")
+                    if content:
+                        exec_summary = f"Executive briefing for {report_date.isoformat()} generated via local Ollama ({ollama_model})."
+                        sentences, grounding_rate = self._parse_and_verify_sentences(content, valid_article_ids)
+                        used_method = f"offline_ollama:{ollama_model}"
+            except Exception as e:
+                logger.warning(f"Ollama local hook error ({e}), reverting to deterministic synthesizer")
+
+        # Tier 4: Zero-API Deterministic Grounded Synthesizer
+        if not exec_summary:
             exec_summary, sentences, grounding_rate = self._synthesize_deterministic_grounded_report(report_date, articles, top_threats)
+            used_method = "deterministic_grounded_synthesis_v2"
 
         prov = Provenance(
             source_ids=list(valid_article_ids),
