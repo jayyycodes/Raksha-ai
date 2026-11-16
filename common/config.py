@@ -18,10 +18,15 @@ class Settings:
     PROXY_URL: str | None
     GROQ_API_KEY: str | None
     GROQ_MODEL: str
-    JWT_SECRET_KEY: str
-    JWT_ALGORITHM: str
-    ACCESS_TOKEN_EXPIRE_MINUTES: int
-    REDIS_URL: str | None
+    JWT_SECRET_KEY: str = "raksha-ai-dev-secret-key-change-in-prod-2026"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    REDIS_URL: str | None = "redis://localhost:6379/0"
+    LLM_FALLBACK_API_KEY: str | None = None
+    LLM_FALLBACK_ENDPOINT: str = "https://api.openai.com/v1/chat/completions"
+    LLM_FALLBACK_MODEL: str = "gpt-4o-mini"
+    OLLAMA_HOST: str | None = None
+    OLLAMA_MODEL: str = "llama3"
 
 
 def _load() -> Settings:
@@ -40,6 +45,11 @@ def _load() -> Settings:
         JWT_ALGORITHM=os.getenv("JWT_ALGORITHM", "HS256"),
         ACCESS_TOKEN_EXPIRE_MINUTES=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440")),
         REDIS_URL=os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+        LLM_FALLBACK_API_KEY=os.getenv("LLM_FALLBACK_API_KEY", os.getenv("OPENAI_API_KEY", None)),
+        LLM_FALLBACK_ENDPOINT=os.getenv("LLM_FALLBACK_ENDPOINT", "https://api.openai.com/v1/chat/completions"),
+        LLM_FALLBACK_MODEL=os.getenv("LLM_FALLBACK_MODEL", "gpt-4o-mini"),
+        OLLAMA_HOST=os.getenv("OLLAMA_HOST", None),
+        OLLAMA_MODEL=os.getenv("OLLAMA_MODEL", "llama3"),
     )
 
 

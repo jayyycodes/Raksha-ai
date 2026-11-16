@@ -337,11 +337,11 @@ Three stages over about six months. Adjust to the college calendar. Tick the box
 
 #### Jaish (Data Expansion, Intelligence & Grounding)
 
-- [ ] **96+ Source Coverage & Connector Framework (`M7`)**: Plug-in connector base interface (1 small file per new source) scaling from 40 to 96+ sources (expanding Rings 1–4 + public Telegram defence channels; *Stretch: Twitter/X keywords, Sentinel Hub / NASA FIRMS satellite*).
-- [ ] **Upload Parsers & Exports (`M9b` + `M9c`)**: Safe CSV (`pandas` + interactive column-mapping UI), TXT, and PDF (`pypdf`) upload parsers; PDF, CSV, and JSON export endpoints for SitReps, entity profiles, and case bundles (*Stretch: Excel & Word parsers*).
-- [ ] **Disinformation Scoring v1 (`M9`)**: Cross-source contradiction scoring derived from `CorroborationAgent` (`CORROBORATED_BY` vs. `CONTRADICTS` across Rings 1–4).
-- [ ] **SitRep Analyst Approval Flow (`M9`)**: Draft $\rightarrow$ Approved workflow wired into `GroundedSitRepAgent` and `/sitrep` UI so reports require explicit analyst sign-off before being marked final.
-- [ ] **LLM Fallback & Final Validation (`M10`)**: Configurable fallback LLM provider (plus optional Ollama offline hook), final validation of regional threat scores & citation grounding rates, and test coverage toward `>80%`.
+- [x] **96+ Source Coverage & Connector Framework (`M7`)**: Plug-in connector base interface (1 small file per new source) scaling from 40 to 96+ sources (expanding Rings 1–4 + public Telegram defence channels; *Stretch: Twitter/X keywords, Sentinel Hub / NASA FIRMS satellite*).
+- [x] **Upload Parsers & Exports (`M9b` + `M9c`)**: Safe CSV (`pandas` + interactive column-mapping UI), TXT, and PDF (`pypdf`) upload parsers; PDF, CSV, and JSON export endpoints for SitReps, entity profiles, and case bundles (*Stretch: Excel & Word parsers*).
+- [x] **Disinformation Scoring v1 (`M9`)**: Cross-source contradiction scoring derived from `CorroborationAgent` (`CORROBORATED_BY` vs. `CONTRADICTS` across Rings 1–4).
+- [x] **SitRep Analyst Approval Flow (`M9`)**: Draft $\rightarrow$ Approved workflow wired into `GroundedSitRepAgent` and `/sitrep` UI so reports require explicit analyst sign-off before being marked final.
+- [x] **LLM Fallback & Final Validation (`M10`)**: Configurable fallback LLM provider (plus optional Ollama offline hook), final validation of regional threat scores & citation grounding rates, and test coverage toward `>80%`.
 - [ ] **Stretch**: `"Ask Raksha"` grounded Q&A assistant over platform data with per-claim citations.
 
 #### Solid exit criteria

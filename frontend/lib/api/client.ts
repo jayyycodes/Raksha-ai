@@ -261,6 +261,42 @@ export async function fetchLatestSitRep(): Promise<import('./types').SitRepData 
   }
 }
 
+export async function approveSitRep(payload: { analyst_name?: string; notes?: string; report_date?: string }): Promise<boolean> {
+  try {
+    const dateParam = payload.report_date ? `/${payload.report_date}` : '';
+    const res = await apiFetch(`${getBaseUrl()}/api/sitreps${dateParam}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        analyst_name: payload.analyst_name || 'Lead Analyst',
+        notes: payload.notes || 'Signed off by intelligence desk.',
+      }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Error approving sitrep:', err);
+    return false;
+  }
+}
+
+export async function rejectSitRep(payload: { analyst_name?: string; reason: string; report_date?: string }): Promise<boolean> {
+  try {
+    const dateParam = payload.report_date ? `/${payload.report_date}` : '';
+    const res = await apiFetch(`${getBaseUrl()}/api/sitreps${dateParam}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        analyst_name: payload.analyst_name || 'Lead Analyst',
+        reason: payload.reason,
+      }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Error rejecting sitrep:', err);
+    return false;
+  }
+}
+
 export async function fetchEvents(params?: { status?: string; region?: string; event_type?: string }): Promise<import('./types').EventListItem[]> {
   try {
     const url = new URL(`${getBaseUrl()}/api/events`);

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { fetchLatestSitRep } from '@/lib/api/client';
+import { fetchLatestSitRep, approveSitRep, rejectSitRep } from '@/lib/api/client';
 import { SitRepData } from '@/lib/api/types';
 import { RingMarker } from '@/components/shared/RingMarker';
 import { ThreatLevel } from '@/components/shared/ThreatLevel';
@@ -10,6 +10,7 @@ import { ThreatLevel } from '@/components/shared/ThreatLevel';
 export default function SitRepPage() {
   const [data, setData] = useState<SitRepData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [approving, setApproving] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -23,6 +24,42 @@ export default function SitRepPage() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleApprove = async () => {
+    if (!data) return;
+    setApproving(true);
+    const ok = await approveSitRep({
+      report_date: data.report_date,
+      analyst_name: 'Lead Analyst (Jaish)',
+      notes: 'Grounded citations verified against official wires. Approved for dissemination.',
+    });
+    if (ok) {
+      setData((prev) => prev ? {
+        ...prev,
+        status: 'approved',
+        approved_by: 'Lead Analyst (Jaish)',
+        approved_at: new Date().toISOString(),
+        analyst_notes: 'Grounded citations verified against official wires. Approved for dissemination.',
+      } : null);
+    }
+    setApproving(false);
+  };
+
+  const handleReject = async () => {
+    if (!data) return;
+    const reason = window.prompt('Specify revision requirements for this SitRep brief:', 'Verify casualty count discrepancy in Western Sector.');
+    if (!reason) return;
+    setApproving(true);
+    const ok = await rejectSitRep({
+      report_date: data.report_date,
+      analyst_name: 'Lead Analyst (Jaish)',
+      reason,
+    });
+    if (ok) {
+      setData((prev) => prev ? { ...prev, status: 'rejected', analyst_notes: reason } : null);
+    }
+    setApproving(false);
   };
 
   return (
@@ -53,6 +90,71 @@ export default function SitRepPage() {
           <span>🖨️ Export / Print PDF</span>
         </button>
       </div>
+
+      {/* Stage 3 Analyst Approval Workflow Bar */}
+      {!loading && data && (
+        <div className="p-4 rounded-lg border border-border bg-card shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 print:hidden">
+          <div className="flex items-center gap-3">
+            <span className="text-lg">
+              {data.status === 'approved' ? '🛡️' : data.status === 'rejected' ? '⚠️' : '📝'}
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-text-primary">
+                  Review Status:
+                </span>
+                <span
+                  className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                    data.status === 'approved'
+                      ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                      : data.status === 'rejected'
+                      ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20'
+                      : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+                  }`}
+                >
+                  {data.status === 'approved'
+                    ? 'Officially Approved'
+                    : data.status === 'rejected'
+                    ? 'Revisions Required'
+                    : 'Draft — Pending Sign-Off'}
+                </span>
+              </div>
+              <p className="text-[11px] text-text-muted mt-0.5">
+                {data.status === 'approved'
+                  ? `Signed off by ${data.approved_by || 'Lead Analyst'}${data.approved_at ? ` on ${new Date(data.approved_at).toLocaleTimeString()}` : ''}`
+                  : data.status === 'rejected'
+                  ? `Returned for revision: ${data.analyst_notes || 'Pending updates'}`
+                  : 'Requires explicit human analyst verification before final command circulation.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {data.status !== 'approved' ? (
+              <>
+                <button
+                  onClick={handleApprove}
+                  disabled={approving}
+                  className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+                >
+                  {approving ? 'Processing...' : '✓ Sign Off & Approve'}
+                </button>
+                <button
+                  onClick={handleReject}
+                  disabled={approving}
+                  className="px-3 py-1.5 rounded bg-card hover:bg-subtle-fill border border-border text-rose-600 text-xs font-semibold transition-colors disabled:opacity-50"
+                >
+                  Request Revisions
+                </button>
+              </>
+            ) : (
+              <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
+                ✓ Command Verified
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main Document Body */}
       {!loading && data ? (

@@ -212,6 +212,10 @@ export interface TopThreatItem {
 
 export interface SitRepData {
   report_date: string;
+  status?: string;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  analyst_notes?: string | null;
   executive_summary: string;
   theatre_assessments: TheatreAssessmentItem[];
   top_threats: TopThreatItem[];
