@@ -72,6 +72,10 @@ from api.routes.threats import router as threats_router
 from api.routes.alerts import router as alerts_router
 from api.routes.watchlists import router as watchlists_router
 
+# ── Stage 3 Solid Routers (Exports, BYOD Uploads, Disinformation, Connectors)
+from api.routes.exports import router as exports_router
+from api.routes.uploads import router as uploads_router
+
 app.include_router(articles_router, prefix="/api")
 app.include_router(sources_router, prefix="/api")
 app.include_router(stats_router, prefix="/api")
@@ -88,3 +92,5 @@ app.include_router(events_router, prefix="/api")
 app.include_router(threats_router, prefix="/api")
 app.include_router(alerts_router, prefix="/api")
 app.include_router(watchlists_router, prefix="/api")
+app.include_router(exports_router, prefix="/api")
+app.include_router(uploads_router, prefix="/api")
