@@ -9,6 +9,7 @@ import {
 } from '@/lib/api/client';
 import { ProfileNoteItem } from '@/lib/api/types';
 import { formatISTDate } from '@/lib/utils';
+import { CorrectionModal } from '@/components/CorrectionModal';
 
 const ProfileMiniMap = dynamic(
   () => import('./ProfileMiniMap').then((m) => m.ProfileMiniMap),
@@ -42,6 +43,7 @@ export const ProfileInteractiveExtras: React.FC<ProfileInteractiveExtrasProps> =
   const [savingNote, setSavingNote] = useState(false);
   const [watching, setWatching] = useState(false);
   const [showLineage, setShowLineage] = useState(false);
+  const [showCorrectionModal, setShowCorrectionModal] = useState(false);
 
   useEffect(() => {
     fetchProfileNotes(profileId).then(setNotes);
@@ -78,6 +80,13 @@ export const ProfileInteractiveExtras: React.FC<ProfileInteractiveExtrasProps> =
             className="text-xs font-semibold px-2.5 py-1 rounded border border-border bg-card hover:bg-subtle-fill text-primary-navy transition-colors"
           >
             {showLineage ? 'Hide Lineage Panel' : 'Why is this here? (Lineage)'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowCorrectionModal(true)}
+            className="text-xs font-semibold px-2.5 py-1 rounded border border-border bg-card hover:bg-subtle-fill text-amber-500 hover:text-amber-400 transition-colors"
+          >
+            ⚖️ Challenge / Correction (DPDP)
           </button>
         </div>
 
@@ -173,6 +182,15 @@ export const ProfileInteractiveExtras: React.FC<ProfileInteractiveExtrasProps> =
           </div>
         </div>
       </div>
+
+      {/* DPDP Act Correction / Takedown Request Modal */}
+      <CorrectionModal
+        isOpen={showCorrectionModal}
+        onClose={() => setShowCorrectionModal(false)}
+        targetType="entity"
+        targetId={profileId.toString()}
+        targetTitle={entityName}
+      />
     </div>
   );
 };

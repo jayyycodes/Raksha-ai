@@ -349,7 +349,7 @@ export async function triggerAnomalyScan(): Promise<boolean> {
 
 export async function triggerSourcesRefresh(): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE_URL}/api/sources/refresh`, { method: 'POST' });
+    const res = await apiFetch(`${getBaseUrl()}/api/sources/refresh`, { method: 'POST' });
     return res.ok;
   } catch (err) {
     console.error('Error refreshing sources:', err);
@@ -443,4 +443,253 @@ export async function addProfileNote(profileId: number, note: string): Promise<i
     return [];
   }
 }
+
+// ── Stage 3 Solid: Auth, RBAC & Audit API ──────────────────────────────────
+
+export async function loginUser(email: string, password: string): Promise<{ access_token: string; user: import('./types').UserProfile } | null> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.error('Login error:', err);
+    return null;
+  }
+}
+
+export async function fetchCurrentUser(token?: string): Promise<{ user: import('./types').UserProfile; workspaces: import('./types').WorkspaceItem[] } | null> {
+  try {
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await apiFetch(`${getBaseUrl()}/api/auth/me`, { headers, cache: 'no-store' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchAuditLogs(params?: { action?: string; entity_type?: string; page?: number; limit?: number }, token?: string): Promise<{ total: number; page: number; events: import('./types').AuditEventItem[] }> {
+  try {
+    const query = new URLSearchParams();
+    if (params?.action) query.set('action', params.action);
+    if (params?.entity_type) query.set('entity_type', params.entity_type);
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await apiFetch(`${getBaseUrl()}/api/audit?${query.toString()}`, { headers, cache: 'no-store' });
+    if (!res.ok) return { total: 0, page: 1, events: [] };
+    return await res.json();
+  } catch {
+    return { total: 0, page: 1, events: [] };
+  }
+}
+
+export async function fetchAuditSummary(token?: string): Promise<import('./types').AuditSummaryData | null> {
+  try {
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await apiFetch(`${getBaseUrl()}/api/audit/summary`, { headers, cache: 'no-store' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+// ── Stage 3 Solid: Cases & Investigations API ──────────────────────────────
+
+export async function fetchCases(params?: { status?: string; priority?: string; q?: string }): Promise<import('./types').CaseListItem[]> {
+  try {
+    const query = new URLSearchParams();
+    if (params?.status && params.status !== 'all') query.set('status', params.status);
+    if (params?.priority && params.priority !== 'all') query.set('priority', params.priority);
+    if (params?.q) query.set('q', params.q);
+
+    const res = await apiFetch(`${getBaseUrl()}/api/cases?${query.toString()}`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.cases || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchCaseById(id: number): Promise<import('./types').CaseDetailData | null> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/cases/${id}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function createCase(payload: { title: string; description?: string; priority?: string; classification?: string; tags?: string[] }): Promise<number | null> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/cases`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.id || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function updateCase(caseId: number, payload: Partial<import('./types').CaseListItem>): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/cases/${caseId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function addCaseItem(caseId: number, payload: { item_type: string; item_id: string; title?: string; analyst_notes?: string }): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/cases/${caseId}/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function addCaseNote(caseId: number, payload: { note_text: string; hypothesis?: string }): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/cases/${caseId}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function exportCaseDossier(caseId: number): Promise<any | null> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/cases/${caseId}/export`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+// ── Stage 3 Solid: BYOD Safe Uploads & Corrections API ────────────────────────
+
+export async function fetchUploads(workspaceId?: number): Promise<import('./types').UploadListResponse | null> {
+  try {
+    const query = workspaceId ? `?workspace_id=${workspaceId}` : '';
+    const res = await apiFetch(`${getBaseUrl()}/api/uploads${query}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function uploadDataFile(file: File, workspaceId?: number): Promise<{ success: boolean; message?: string; upload?: import('./types').UploadItem }> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (workspaceId) formData.append('workspace_id', workspaceId.toString());
+
+    const res = await apiFetch(`${getBaseUrl()}/api/uploads`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, message: data.detail || 'Upload failed' };
+    }
+    return { success: true, message: data.message, upload: data.upload };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Network error during upload' };
+  }
+}
+
+export async function deleteUpload(uploadId: number): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/uploads/${uploadId}`, {
+      method: 'DELETE',
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function submitCorrectionRequest(payload: {
+  target_type: string;
+  target_id: string;
+  requester_email: string;
+  claim_details: string;
+  supporting_evidence?: string;
+  workspace_id?: number;
+}): Promise<{ success: boolean; message?: string; id?: number }> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/corrections`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, message: data.detail || 'Failed to submit correction request' };
+    }
+    return { success: true, message: data.message, id: data.id };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Network error' };
+  }
+}
+
+export async function fetchCorrections(params?: { status?: string; target_type?: string }): Promise<import('./types').CorrectionListResponse | null> {
+  try {
+    const query = new URLSearchParams();
+    if (params?.status && params.status !== 'all') query.set('status', params.status);
+    if (params?.target_type && params.target_type !== 'all') query.set('target_type', params.target_type);
+
+    const res = await apiFetch(`${getBaseUrl()}/api/corrections?${query.toString()}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function resolveCorrection(requestId: number, payload: { status: string; resolution_notes: string }): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/corrections/${requestId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 

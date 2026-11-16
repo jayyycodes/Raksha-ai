@@ -2,12 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ main, dev, jay/lead ]
   pull_request:
     branches: [ main, dev ]
 
 jobs:
-  test:
+  backend-test:
     runs-on: ubuntu-latest
 
     services:
@@ -21,6 +21,16 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -39,20 +49,59 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install ruff pytest pytest-cov
+          pip install ruff pytest pytest-cov prometheus-client celery redis
 
-      - name: Lint with ruff
+      - name: Apply Database Migrations (001 - 008)
+        env:
+          PGPASSWORD: raksha
         run: |
-          ruff check . --ignore E501,F401,F403,F405
+          psql -h localhost -U raksha -d rakshaai -f database/schema.sql
+          psql -h localhost -U raksha -d rakshaai -f database/migrations/002_source_health.sql
+          psql -h localhost -U raksha -d rakshaai -f database/migrations/003_ontology_graph.sql
+          psql -h localhost -U raksha -d rakshaai -f database/migrations/004_stage2_pipeline_fields.sql
+          psql -h localhost -U raksha -d rakshaai -f database/migrations/005_stage2_indexes.sql
+          psql -h localhost -U raksha -d rakshaai -f database/migrations/006_stage3_auth_workspaces_audit.sql
+          psql -h localhost -U raksha -d rakshaai -f database/migrations/007_stage3_cases_investigations.sql
+          psql -h localhost -U raksha -d rakshaai -f database/migrations/008_stage3_uploads_corrections.sql
 
-      - name: Set up DB schema
-        run: |
-          PGPASSWORD=raksha psql -h localhost -U raksha -d rakshaai -f database/schema.sql
-          PGPASSWORD=raksha psql -h localhost -U raksha -d rakshaai -f database/migrations/002_source_health.sql
-
-      - name: Run pytest
+      - name: Seed Database
         env:
           DATABASE_URL: postgresql://raksha:raksha@localhost:5432/rakshaai
         run: |
+          python -m database.seed
+          python -m database.seed_auth
+          python -m database.seed_cases
+
+      - name: Run Pytest Suite
+        env:
+          DATABASE_URL: postgresql://raksha:raksha@localhost:5432/rakshaai
+          REDIS_URL: redis://localhost:6379/0
+          JWT_SECRET_KEY: test_secret_key_ci
+        run: |
           pytest -v tests/
 
+  frontend-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          pnpm install --frozen-lockfile
+
+      - name: TypeScript Verification
+        run: |
+          cd frontend
+          pnpm exec tsc --noEmit
