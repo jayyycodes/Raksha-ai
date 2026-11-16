@@ -342,3 +342,142 @@ export interface ProfileNoteItem {
   created_at: string;
 }
 
+export interface UserProfile {
+  id: number;
+  email: string;
+  full_name: string;
+  role: 'admin' | 'analyst' | 'viewer';
+}
+
+export interface WorkspaceItem {
+  id: number;
+  name: string;
+  description?: string;
+  is_shared: boolean;
+  owner_id?: number;
+  owner_name?: string;
+}
+
+export interface AuditEventItem {
+  id: number;
+  user_id?: number;
+  user_email: string;
+  user_name: string;
+  user_role: string;
+  action: string;
+  entity_type?: string;
+  entity_id?: string;
+  ip_address?: string;
+  user_agent?: string;
+  details: Record<string, any>;
+  created_at: string;
+}
+
+export interface AuditSummaryData {
+  total_audit_records: number;
+  records_last_24h: number;
+  action_breakdown: Array<{ action: string; count: number }>;
+}
+
+export interface CaseListItem {
+  id: number;
+  title: string;
+  description?: string;
+  status: 'active' | 'in_review' | 'closed' | 'archived';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  classification: string;
+  lead_analyst_id?: number;
+  lead_analyst_name?: string;
+  workspace_id?: number;
+  workspace_name?: string;
+  tags: string[];
+  evidence_count: number;
+  notes_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CaseEvidenceItem {
+  id: number;
+  item_type: 'article' | 'entity' | 'event' | 'incident';
+  item_id: string;
+  title: string;
+  analyst_notes?: string;
+  added_by_name?: string;
+  added_at: string;
+}
+
+export interface CaseNoteItem {
+  id: number;
+  note_text: string;
+  hypothesis?: string;
+  analyst_name?: string;
+  analyst_role?: string;
+  created_at: string;
+}
+
+export interface CaseDetailData {
+  case: CaseListItem;
+  evidence_items: CaseEvidenceItem[];
+  notes: CaseNoteItem[];
+}
+
+export interface UploadItem {
+  id: number;
+  filename: string;
+  file_hash: string;
+  mime_type: string;
+  file_size: number;
+  workspace_id: number;
+  uploader_id: number;
+  uploader_email: string;
+  source_type: string;
+  status: string;
+  parse_summary: {
+    format?: string;
+    row_count?: number;
+    ingested_count?: number;
+    columns?: string[];
+    sample?: any[];
+    page_count?: number;
+    total_characters?: number;
+    word_count?: number;
+    line_count?: number;
+    preview_snippet?: string;
+    status?: string;
+  };
+  created_at: string;
+}
+
+export interface UploadListResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  workspace_id: number;
+  items: UploadItem[];
+}
+
+export interface CorrectionRequestItem {
+  id: number;
+  target_type: 'entity' | 'article' | 'event' | 'threat_score';
+  target_id: string;
+  requester_email: string;
+  claim_details: string;
+  supporting_evidence?: string;
+  status: 'submitted' | 'in_review' | 'accepted' | 'rejected';
+  resolution_notes?: string;
+  resolved_by?: number;
+  resolver_email?: string;
+  workspace_id?: number;
+  created_at: string;
+  resolved_at?: string;
+}
+
+export interface CorrectionListResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  items: CorrectionRequestItem[];
+}
+
+

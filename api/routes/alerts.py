@@ -116,6 +116,11 @@ def trigger_anomaly_scan():
     # 3. Detect anomalies and watchlist triggers
     new_alerts = detect_anomalies(window_hours=24)
 
+    # 4. Invalidate Redis caches to ensure fresh data is immediately served
+    from common.cache import cache_invalidate_prefix
+    cache_invalidate_prefix("api:map")
+    cache_invalidate_prefix("api:threats")
+
     return {
         "scanned": True,
         "processed_articles": processed_count,

@@ -30,6 +30,19 @@ if os.getenv("CORS_ORIGINS"):
         [o.strip().rstrip("/") for o in os.getenv("CORS_ORIGINS").split(",") if o.strip()]
     )
 
+# Sentry Error Tracking Initialization (if configured)
+if os.getenv("SENTRY_DSN"):
+    try:
+        import sentry_sdk
+        sentry_sdk.init(
+            dsn=os.getenv("SENTRY_DSN"),
+            environment=os.getenv("ENVIRONMENT", "production"),
+            traces_sample_rate=0.2,
+        )
+        logger.info("Sentry error tracking initialized")
+    except Exception as exc:
+        logger.warning(f"Could not initialize Sentry: {exc}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(dict.fromkeys(_allowed_origins)),
@@ -38,11 +51,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from common.metrics import PrometheusMetricsMiddleware, get_metrics_response
+app.add_middleware(PrometheusMetricsMiddleware)
 
-# ── Health ──────────────────────────────────────────────────────
+
+# ── Health & Observability ──────────────────────────────────────────
 @app.get("/", tags=["Health"])
 def root():
-    return {"status": "ok", "service": "raksha-ai", "stage": "stage2-mid"}
+    return {"status": "ok", "service": "raksha-ai", "stage": "stage3-solid"}
+
+
+@app.get("/metrics", tags=["Observability"], response_class=get_metrics_response.__annotations__.get("return"))
+def prometheus_metrics():
+    """Prometheus metrics scrape endpoint."""
+    return get_metrics_response()
 
 
 @app.get("/api/health", tags=["Health"])
@@ -72,13 +94,22 @@ from api.routes.threats import router as threats_router
 from api.routes.alerts import router as alerts_router
 from api.routes.watchlists import router as watchlists_router
 
-# ── Stage 3 Solid Routers (Exports, BYOD Uploads, Disinformation, Connectors)
-from api.routes.exports import router as exports_router
+# ── Stage 3 Solid Routers (Auth, RBAC, Workspaces, Immutable Audit, Cases, BYOD Uploads, Corrections, Exports)
+from api.routes.auth import router as auth_router
+from api.routes.audit import router as audit_router
+from api.routes.cases import router as cases_router
 from api.routes.uploads import router as uploads_router
+from api.routes.corrections import router as corrections_router
+from api.routes.exports import router as exports_router
 
 app.include_router(articles_router, prefix="/api")
 app.include_router(sources_router, prefix="/api")
 app.include_router(stats_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
+app.include_router(audit_router, prefix="/api")
+app.include_router(cases_router, prefix="/api")
+app.include_router(uploads_router)
+app.include_router(corrections_router)
 app.include_router(graph_router, prefix="/api")
 app.include_router(map_router, prefix="/api")
 app.include_router(profiles_router, prefix="/api")
@@ -93,4 +124,3 @@ app.include_router(threats_router, prefix="/api")
 app.include_router(alerts_router, prefix="/api")
 app.include_router(watchlists_router, prefix="/api")
 app.include_router(exports_router, prefix="/api")
-app.include_router(uploads_router, prefix="/api")

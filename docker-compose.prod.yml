@@ -1,0 +1,128 @@
+version: "3.9"
+
+services:
+  db:
+    image: pgvector/pgvector:pg15
+    container_name: raksha_prod_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-raksha}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-raksha_secure_prod_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-rakshaai}
+    volumes:
+      - raksha_prod_pgdata:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ./database/migrations/002_source_health.sql:/docker-entrypoint-initdb.d/02_source_health.sql
+      - ./database/migrations/003_ontology_graph.sql:/docker-entrypoint-initdb.d/03_ontology_graph.sql
+      - ./database/migrations/004_stage2_pipeline_fields.sql:/docker-entrypoint-initdb.d/04_stage2_pipeline_fields.sql
+      - ./database/migrations/005_stage2_indexes.sql:/docker-entrypoint-initdb.d/05_stage2_indexes.sql
+      - ./database/migrations/006_stage3_auth_workspaces_audit.sql:/docker-entrypoint-initdb.d/06_auth_audit.sql
+      - ./database/migrations/007_stage3_cases_investigations.sql:/docker-entrypoint-initdb.d/07_cases.sql
+      - ./database/migrations/008_stage3_uploads_corrections.sql:/docker-entrypoint-initdb.d/08_uploads_corrections.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-raksha} -d ${POSTGRES_DB:-rakshaai}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: raksha_prod_redis
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - raksha_prod_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: raksha_prod_api
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-raksha}:${POSTGRES_PASSWORD:-raksha_secure_prod_pass}@db:5432/${POSTGRES_DB:-rakshaai}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-raksha_sovereign_intelligence_jwt_salt_2026}
+      JWT_ALGORITHM: HS256
+      ENVIRONMENT: production
+    volumes:
+      - raksha_prod_uploads:/app/data/uploads/sandboxed
+      - ./logs:/app/logs
+    command: >
+      sh -c "python -m scripts.apply_migrations &&
+             python -m database.seed &&
+             python -m database.seed_auth &&
+             python -m database.seed_cases &&
+             uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 4"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/api/health\")'"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: raksha_prod_celery
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-raksha}:${POSTGRES_PASSWORD:-raksha_secure_prod_pass}@db:5432/${POSTGRES_DB:-rakshaai}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - raksha_prod_uploads:/app/data/uploads/sandboxed
+      - ./logs:/app/logs
+    command: celery -A pipeline.celery_app.celery_app worker --loglevel=info --concurrency=4
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ""
+    container_name: raksha_prod_frontend
+    restart: always
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      INTERNAL_API_URL: http://api:8000
+    expose:
+      - "3000"
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: raksha_prod_nginx
+    restart: always
+    depends_on:
+      - api
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./logs/nginx:/var/log/nginx
+
+volumes:
+  raksha_prod_pgdata:
+  raksha_prod_redis:
+  raksha_prod_uploads:

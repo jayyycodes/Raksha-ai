@@ -13,6 +13,7 @@ from sqlalchemy import text
 
 from common.constants import DEFENCE_REGIONS
 from common.db import get_db as _get_db
+from common.cache import cache_get, cache_set
 from common.logger import get_logger
 
 logger = get_logger(__name__)
@@ -27,6 +28,10 @@ def get_db():
 @router.get("")
 def list_threats(db=Depends(get_db)):
     """Current threat scores for all monitored defence regions, sorted descending."""
+    cached = cache_get("api:threats:latest")
+    if cached is not None:
+        return cached
+
     rows = db.execute(
         text("""
             SELECT DISTINCT ON (region)
@@ -59,12 +64,14 @@ def list_threats(db=Depends(get_db)):
             "score": round(float(r.score), 2),
             "trend": r.trend or "stable",
             "article_count": int(r.article_count or 0),
-            "calculated_at": r.calculated_at,
+            "calculated_at": r.calculated_at.isoformat() if hasattr(r.calculated_at, "isoformat") else str(r.calculated_at),
         }
         for r in rows
     ]
     items.sort(key=lambda x: x["score"], reverse=True)
-    return {"regions": items, "total": len(items)}
+    res = {"regions": items, "total": len(items)}
+    cache_set("api:threats:latest", res, ttl_seconds=60)
+    return res
 
 
 @router.get("/history/all")
