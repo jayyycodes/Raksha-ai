@@ -449,6 +449,47 @@ def normalize_indic_romanization_variants(text: str) -> str:
     return norm
 
 
+def normalize_military_rank(rank: Optional[str]) -> Optional[str]:
+    """Normalize military rank variants (e.g. 'Gen' / 'General' -> 'general', 'Lt Gen' / 'Lt. Gen' -> 'lieutenant_general')."""
+    if not rank or not isinstance(rank, str):
+        return None
+    r = rank.lower().strip().replace(".", "")
+    r = re.sub(r"\s+", " ", r)
+    if r in ("general", "gen", "جنرل", "सेना प्रमुख"):
+        return "general"
+    if r in ("lt gen", "lieutenant general"):
+        return "lieutenant_general"
+    if r in ("maj gen", "major general"):
+        return "major_general"
+    if r in ("brigadier", "brig"):
+        return "brigadier"
+    if r in ("colonel", "col"):
+        return "colonel"
+    if r in ("lt col", "lieutenant colonel"):
+        return "lieutenant_colonel"
+    if r in ("major", "maj"):
+        return "major"
+    if r in ("captain", "capt"):
+        return "captain"
+    if r in ("lieutenant", "lt"):
+        return "lieutenant"
+    if r in ("subedar major", "subedar-major"):
+        return "subedar_major"
+    if r in ("subedar",):
+        return "subedar"
+    if r in ("air chief marshal", "acm"):
+        return "air_chief_marshal"
+    if r in ("air marshal",):
+        return "air_marshal"
+    if r in ("admiral",):
+        return "admiral"
+    if r in ("vice admiral",):
+        return "vice_admiral"
+    if r in ("defence minister", "defense minister", "रक्षा मंत्री"):
+        return "defence_minister"
+    return r
+
+
 def normalize_entity_name(name: str) -> str:
     """
     Standardize raw entity string: strip honorifics/ranks,
@@ -505,8 +546,20 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
     name: str = "resolution_agent"
     version: str = "0.2.0"
 
-    def __init__(self, feedback_store: Optional[ResolutionFeedbackStore] = None):
+    def __init__(
+        self,
+        feedback_store: Optional[ResolutionFeedbackStore] = None,
+        auto_link_threshold: float = 0.88,
+        review_queue_threshold: float = 0.65,
+    ):
         super().__init__()
+        if not (0.0 <= review_queue_threshold <= auto_link_threshold <= 1.0):
+            raise ValueError(
+                f"Invalid resolution thresholds: require 0.0 <= review_queue_threshold ({review_queue_threshold}) "
+                f"<= auto_link_threshold ({auto_link_threshold}) <= 1.0"
+            )
+        self.auto_link_threshold = auto_link_threshold
+        self.review_queue_threshold = review_queue_threshold
         self._feedback_store: ResolutionFeedbackStore = feedback_store or ResolutionFeedbackStore()
         # Invert canonical alias map for exact lookup: normalized_alias -> (canonical, etype, context_desc)
         self._alias_to_canonical: Dict[str, Tuple[str, str, str]] = {}
@@ -514,11 +567,25 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
         self._translit_to_canonical: Dict[str, Tuple[str, str, str]] = {}
         # Cached 768-dim embeddings for canonical entity descriptions
         self._canonical_context_embeddings: Dict[str, List[float]] = {}
+        # Normalized military / official ranks associated with canonical persons
+        self._canonical_person_ranks: Dict[str, Set[str]] = {}
 
         for canonical, (etype, aliases, context_desc) in CANONICAL_DEFENSE_ENTITIES.items():
             norm_canonical = normalize_entity_name(canonical)
             self._alias_to_canonical[norm_canonical] = (canonical, etype, context_desc)
             self._translit_to_canonical[normalize_indic_romanization_variants(canonical)] = (canonical, etype, context_desc)
+
+            if etype == "PERSON":
+                from engine.ner import parse_structured_person_mention
+                person_ranks: Set[str] = set()
+                for al in aliases + [canonical]:
+                    p = parse_structured_person_mention(al)
+                    if p.get("extracted_rank"):
+                        nr = normalize_military_rank(p["extracted_rank"])
+                        if nr:
+                            person_ranks.add(nr)
+                if person_ranks:
+                    self._canonical_person_ranks[canonical] = person_ranks
 
             for alias in aliases:
                 norm_alias = normalize_entity_name(alias)
@@ -575,6 +642,29 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
         translit_name = normalize_indic_romanization_variants(trimmed)
         norm_ws = normalize_workspace_id(workspace_id)
 
+        from engine.ner import parse_structured_person_mention
+        person_info = parse_structured_person_mention(raw_name)
+        extracted_rank = person_info.get("extracted_rank") if person_info else None
+
+        def _check_person_rank_conflict(can_name: str, etype_str: str) -> Optional[Dict[str, Any]]:
+            if etype_str == "PERSON" and extracted_rank and can_name in self._canonical_person_ranks:
+                known_ranks = self._canonical_person_ranks[can_name]
+                norm_r = normalize_military_rank(extracted_rank)
+                if norm_r and norm_r not in known_ranks:
+                    return {
+                        "raw_name": raw_name,
+                        "canonical_name": can_name,
+                        "entity_type": "PERSON",
+                        "confidence": 0.50,
+                        "action": "review_queue",
+                        "decision": "review_queue",
+                        "match_method": "conflicting_rank_guard",
+                        "explanation": f"Mention '{raw_name}' has military rank '{extracted_rank}' which conflicts with canonical ranks for '{can_name}'; routed to review_queue.",
+                        "workspace_id": norm_ws,
+                        "extracted_rank": extracted_rank,
+                    }
+            return None
+
         if not norm_name:
             return {
                 "raw_name": raw_name,
@@ -586,6 +676,7 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "match_method": "empty_input",
                 "explanation": "Empty entity string",
                 "workspace_id": norm_ws,
+                "extracted_rank": extracted_rank,
             }
 
         # Guard 1: Check for common English dictionary words (cannot be bypassed by feedback)
@@ -601,13 +692,12 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "match_method": "common_english_word_guard",
                 "explanation": f"Common English word '{tokens[0]}' protected from transliteration/alias merging.",
                 "workspace_id": norm_ws,
+                "extracted_rank": extracted_rank,
             }
 
         # Guard 2: Conservative Person Resolution (Mandatory Requirement 3)
         # Person mentions with ranks but ambiguous names (e.g. 'General Singh') must remain in review_queue.
         # Organizational or geographical context alone must not trigger automatic merging.
-        from engine.ner import parse_structured_person_mention
-        person_info = parse_structured_person_mention(raw_name)
         if person_info.get("extracted_rank") and person_info.get("is_ambiguous"):
             return {
                 "raw_name": raw_name,
@@ -619,6 +709,7 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "match_method": "ambiguous_person_guard",
                 "explanation": f"Person mention '{raw_name}' with rank lacks full identity specificity ({person_info.get('evidence')}); held in review_queue.",
                 "workspace_id": norm_ws,
+                "extracted_rank": extracted_rank,
             }
 
         # Guard 3: Check for ambiguous common single-token generic names
@@ -633,6 +724,7 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "match_method": "ambiguous_common_name_guard",
                 "explanation": f"Single generic token '{tokens[0]}' held separate without corroborating full identity.",
                 "workspace_id": norm_ws,
+                "extracted_rank": extracted_rank,
             }
 
         # 0. Check positive feedback overlay (runtime accepted aliases)
@@ -683,6 +775,7 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                     "analyst_id": pos_record.analyst_id,
                     "workspace_id": norm_ws,
                     "claim_status": ClaimStatus.REPORTED.value,
+                    "extracted_rank": extracted_rank,
                 }
 
             # Validate incoming entity_type_hint if provided
@@ -700,6 +793,7 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                     "analyst_id": pos_record.analyst_id,
                     "workspace_id": norm_ws,
                     "claim_status": ClaimStatus.REPORTED.value,
+                    "extracted_rank": extracted_rank,
                 }
 
             is_rej, rej_rec, rej_reason = self._feedback_store.is_pair_rejected(trimmed, auth_can_name, workspace_id=norm_ws)
@@ -718,7 +812,12 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                     "analyst_id": rej_rec.analyst_id if rej_rec else None,
                     "workspace_id": norm_ws,
                     "claim_status": ClaimStatus.DISPUTED.value,
+                    "extracted_rank": extracted_rank,
                 }
+
+            rank_conflict = _check_person_rank_conflict(auth_can_name, auth_etype)
+            if rank_conflict:
+                return rank_conflict
 
             return {
                 "raw_name": raw_name,
@@ -733,6 +832,7 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "analyst_id": pos_record.analyst_id,
                 "workspace_id": norm_ws,
                 "claim_status": ClaimStatus.ANALYST_VERIFIED.value,
+                "extracted_rank": extracted_rank,
             }
 
         # Generate mention context embedding if context is provided
@@ -766,7 +866,12 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                     "analyst_id": rej_rec.analyst_id if rej_rec else None,
                     "workspace_id": norm_ws,
                     "claim_status": ClaimStatus.DISPUTED.value,
+                    "extracted_rank": extracted_rank,
                 }
+
+            rank_conflict = _check_person_rank_conflict(canonical, etype)
+            if rank_conflict:
+                return rank_conflict
 
             score = 0.98
             explanation = f"Exact match with canonical defense entity '{canonical}'."
@@ -791,6 +896,7 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "match_method": "exact_defense_alias",
                 "explanation": explanation,
                 "workspace_id": norm_ws,
+                "extracted_rank": extracted_rank,
             }
 
         # 2. Indic Romanization transliteration match
@@ -814,7 +920,12 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                     "analyst_id": rej_rec.analyst_id if rej_rec else None,
                     "workspace_id": norm_ws,
                     "claim_status": ClaimStatus.DISPUTED.value,
+                    "extracted_rank": extracted_rank,
                 }
+
+            rank_conflict = _check_person_rank_conflict(canonical, etype)
+            if rank_conflict:
+                return rank_conflict
 
             score = 0.92
             explanation = f"Transliteration variant match -> '{canonical}'."
@@ -839,6 +950,7 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "match_method": "indic_romanization_transliteration",
                 "explanation": explanation,
                 "workspace_id": norm_ws,
+                "extracted_rank": extracted_rank,
             }
 
         # 3. Fuzzy match against known aliases with contextual embedding support
@@ -870,7 +982,7 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
             # Check negative feedback constraint
             is_rej, rej_rec, rej_reason = self._feedback_store.is_pair_rejected(trimmed, canonical, workspace_id=norm_ws)
             if is_rej:
-                if score >= 0.65 and (blocked_rejected_candidate is None or score > blocked_rejected_candidate[1]):
+                if score >= self.review_queue_threshold and (blocked_rejected_candidate is None or score > blocked_rejected_candidate[1]):
                     blocked_rejected_candidate = (canonical, score, rej_rec)
                 continue
 
@@ -901,7 +1013,7 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
 
         # If fuzzy match failed to find a non-rejected canonical, but an analyst-rejected
         # canonical was prevented from matching, report the negative constraint.
-        if adjusted_score < 0.65 and blocked_rejected_candidate is not None:
+        if adjusted_score < self.review_queue_threshold and blocked_rejected_candidate is not None:
             blk_can, blk_score, blk_rec = blocked_rejected_candidate
             dec_id = blk_rec.decision_id if blk_rec else "conflict"
             return {
@@ -917,17 +1029,23 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "analyst_id": blk_rec.analyst_id if blk_rec else None,
                 "workspace_id": norm_ws,
                 "claim_status": ClaimStatus.DISPUTED.value,
+                "extracted_rank": extracted_rank,
             }
 
         # Conservative Decision Logic:
-        # Strong match: >= 0.88 -> auto_link
-        # Medium match: 0.65 to 0.87 -> review_queue
-        # Weak match: < 0.65 -> separate
-        if adjusted_score >= 0.88:
+        # Strong match: >= auto_link_threshold -> auto_link
+        # Medium match: review_queue_threshold to auto_link_threshold -> review_queue
+        # Weak match: < review_queue_threshold -> separate
+        if adjusted_score >= self.auto_link_threshold:
             action = "auto_link"
             method = "fuzzy_high_confidence"
             explanation = f"High similarity ({adjusted_score:.2f}) with alias '{best_alias}' -> '{best_canonical}'."
-        elif adjusted_score >= 0.65:
+
+            rank_conflict = _check_person_rank_conflict(best_canonical, best_type)
+            if rank_conflict:
+                return rank_conflict
+
+        elif adjusted_score >= self.review_queue_threshold:
             action = "review_queue"
             method = "fuzzy_medium_review"
             explanation = f"Moderate similarity ({adjusted_score:.2f}) with alias '{best_alias}'. Analyst review required."
@@ -953,6 +1071,7 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                     "analyst_id": nc_rec.analyst_id if nc_rec else None,
                     "workspace_id": norm_ws,
                     "claim_status": ClaimStatus.DISPUTED.value,
+                    "extracted_rank": extracted_rank,
                 }
 
             action = "separate"
@@ -974,6 +1093,7 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
             "match_method": method,
             "explanation": explanation,
             "workspace_id": norm_ws,
+            "extracted_rank": extracted_rank,
         }
 
     def run(

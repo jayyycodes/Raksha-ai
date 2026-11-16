@@ -75,6 +75,44 @@ def compute_jaccard(set_a: Set[str], set_b: Set[str]) -> float:
     return intersection / union if union > 0 else 0.0
 
 
+THREADING_STOPWORDS = {
+    "the", "a", "an", "in", "on", "at", "of", "for", "to", "with", "and", "is", "was", "were",
+    "by", "that", "this", "from", "as", "are", "be", "been", "has", "have", "had", "it", "its",
+    "near", "after", "reported", "into", "over",
+}
+
+KNOWN_DISTINCT_SECTORS = {
+    "poonch", "uri", "rajouri", "tangdhar", "kupwara", "baramulla", "mendhar", "gurez",
+    "samba", "barmer", "jodhpur", "jaisalmer", "leh", "chushul", "demchok", "galwan",
+    "mumbai", "shillong", "visakhapatnam", "kakinada", "gurdaspur",
+}
+
+
+def clean_tokens(text: str) -> Set[str]:
+    """Extract lowercased alphanumeric words excluding high-frequency grammatical stopwords."""
+    words = tokenize_text(text)
+    return {w for w in words if w not in THREADING_STOPWORDS and len(w) > 2}
+
+
+def parse_date_safely(date_val: Any) -> Optional[datetime]:
+    """Safely parse ISO string or datetime object into UTC datetime."""
+    if not date_val:
+        return None
+    if isinstance(date_val, datetime):
+        return date_val if date_val.tzinfo else date_val.replace(tzinfo=timezone.utc)
+    if isinstance(date_val, str) and date_val.strip():
+        s = date_val.strip()
+        try:
+            dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            try:
+                return datetime.strptime(s[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            except Exception:
+                return None
+    return None
+
+
 def compute_cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
     """
     Compute cosine similarity between two numeric vectors.
@@ -164,23 +202,53 @@ class ThreadingAgent(BaseAgent[Union[EventThreadingIn, Dict[str, Any]], EventThr
         article_region: Optional[str],
         event: Dict[str, Any],
         article_embedding: Optional[List[float]] = None,
+        article_date: Optional[Union[str, datetime]] = None,
     ) -> Tuple[float, str, str]:
         """
         Compute weighted multi-factor match score between an article and an event cluster.
         Returns (score, rationale, text_metric_used).
         """
         # 1. Entity Overlap (weight: 0.35)
-        art_ent_set = {e.lower().strip() for e in article_entities if e}
-        evt_ent_set = {e.lower().strip() for e in event.get("entities", []) if e}
+        def _norm_entity_token(e: str) -> str:
+            token = e.lower().strip()
+            # Normalize aircraft/equipment mark designations (e.g. 'su-30mki' -> 'su-30', 'tejas mk1' -> 'tejas')
+            # without corrupting unrelated words (e.g. 'kamki') or reducing 'mki' alone to an empty token.
+            clean = re.sub(
+                r"(?:[\s\-_]+(?:mki|mk[-_\.]?[1-4]|mark[-_\.]?[1-4])|(?<=\d)(?:mki|mk[-_\.]?[1-4]|mark[-_\.]?[1-4]))\b",
+                "",
+                token,
+                flags=re.IGNORECASE,
+            ).strip()
+            token = clean if clean else token
+            if token in ("lac", "line of actual control"):
+                return "lac"
+            if token in ("loc", "line of control"):
+                return "loc"
+            if token in ("indian armed forces", "indian army"):
+                return "indian armed forces"
+            return token
+
+        art_ent_set = {_norm_entity_token(e) for e in article_entities if e}
+        evt_ent_set = {_norm_entity_token(e) for e in event.get("entities", []) if e}
         shared_entities = art_ent_set & evt_ent_set
         entity_score = 0.0
         if art_ent_set and evt_ent_set:
             entity_score = compute_jaccard(art_ent_set, evt_ent_set)
-            # Critical strategic keyword presence bonus
-            if any(k in shared_entities for k in ["lac", "loc", "siachen", "galwan", "brahmos", "drdo"]):
+            specific_keywords = {
+                "galwan", "siachen", "brahmos", "agni-prime", "agni-p",
+                "ins kolkata", "tangdhar", "chushul", "demchok", "akash-ng", "poorvi prahar"
+            }
+            if (shared_entities & specific_keywords) or len(shared_entities) >= 3:
                 entity_score = min(1.0, entity_score + 0.30)
         elif shared_entities:
-            entity_score = 0.50
+            entity_score = 0.40
+
+        # Sub-regional Sector Conflict Check
+        raw_art_ents = {e.lower().strip() for e in article_entities if e}
+        raw_evt_ents = {e.lower().strip() for e in event.get("entities", []) if e}
+        sec_art = raw_art_ents & KNOWN_DISTINCT_SECTORS
+        sec_evt = raw_evt_ents & KNOWN_DISTINCT_SECTORS
+        sector_conflict = bool(sec_art and sec_evt and not (sec_art & sec_evt))
 
         # 2. Event Type Alignment (weight: 0.25)
         evt_type = (event.get("event_type") or "general").lower()
@@ -198,7 +266,9 @@ class ThreadingAgent(BaseAgent[Union[EventThreadingIn, Dict[str, Any]], EventThr
         evt_region = (event.get("region") or "").lower().strip()
         art_region = (article_region or "").lower().strip()
         if evt_region and art_region:
-            if evt_region == art_region or evt_region in art_region or art_region in evt_region:
+            if evt_region in ("national", "general") or art_region in ("national", "general"):
+                geo_score = 0.50
+            elif evt_region == art_region or evt_region in art_region or art_region in evt_region:
                 geo_score = 1.0
             else:
                 geo_score = 0.15
@@ -208,7 +278,6 @@ class ThreadingAgent(BaseAgent[Union[EventThreadingIn, Dict[str, Any]], EventThr
             geo_score = 0.40
 
         # 4. Text / Semantic Similarity (weight: 0.20)
-        # Attempt 768-dimensional cosine similarity first
         text_sim = 0.0
         text_metric = "none"
 
@@ -223,14 +292,60 @@ class ThreadingAgent(BaseAgent[Union[EventThreadingIn, Dict[str, Any]], EventThr
 
         if text_metric == "none":
             # Transparent fallback to token Jaccard similarity when embeddings are unavailable
-            art_tokens = tokenize_text(f"{article_title} {article_content}")
-            evt_tokens = tokenize_text(f"{event.get('title', '')} {event.get('summary', '')}")
-            text_sim = compute_jaccard(art_tokens, evt_tokens)
+            title_tok_a = clean_tokens(article_title)
+            title_tok_b = clean_tokens(event.get("title", ""))
+            title_sim = compute_jaccard(title_tok_a, title_tok_b)
+
+            all_tok_a = clean_tokens(f"{article_title} {article_content}")
+            all_tok_b = clean_tokens(f"{event.get('title', '')} {event.get('summary', '')}")
+            body_sim = compute_jaccard(all_tok_a, all_tok_b)
+
+            text_sim = max(title_sim, min(1.0, (0.5 * title_sim) + (0.5 * min(1.0, body_sim * 2.5))))
             text_metric = "token_jaccard_fallback"
 
+        # 5. Temporal Proximity
+        temporal_penalty = 0.0
+        delta_days = None
+        art_dt = parse_date_safely(article_date)
+        evt_dt = parse_date_safely(
+            event.get("published_at") or event.get("created_at") or event.get("date")
+        )
+        if art_dt and evt_dt:
+            delta_days = abs((art_dt - evt_dt).days)
+            if delta_days > 365:
+                temporal_penalty = -0.45
+            elif delta_days > 180:
+                temporal_penalty = -0.30
+            elif delta_days > 45:
+                temporal_penalty = -0.15
+            elif delta_days > 14:
+                temporal_penalty = -0.05
+            elif delta_days <= 2:
+                temporal_penalty = 0.05
+
         # Weighted composite score
-        composite = (0.35 * entity_score) + (0.25 * type_score) + (0.20 * geo_score) + (0.20 * text_sim)
+        composite = (0.35 * entity_score) + (0.25 * type_score) + (0.20 * geo_score) + (0.20 * text_sim) + temporal_penalty
         composite = round(min(1.0, max(0.0, composite)), 4)
+
+        # Operational safety bounds:
+        if delta_days is not None and delta_days > 180:
+            composite = min(composite, 0.35)
+        elif delta_days is not None and delta_days > 30:
+            composite = min(composite, 0.55)
+
+        if sector_conflict:
+            composite = min(composite, 0.42)
+
+        # Preliminary / unconfirmed reports require analyst review rather than auto-linking
+        full_text = f"{article_title} {article_content} {event.get('title', '')} {event.get('summary', '')}".lower()
+        if any(w in full_text for w in ["unconfirmed", "preliminary", "unverified"]):
+            composite = min(composite, 0.58)
+
+        # Divergent event types without headline agreement require analyst review
+        if art_type != evt_type:
+            title_sim_val = compute_jaccard(clean_tokens(article_title), clean_tokens(event.get("title", "")))
+            if title_sim_val < 0.15:
+                composite = min(composite, 0.58)
 
         reasons = []
         if shared_entities:
@@ -239,10 +354,86 @@ class ThreadingAgent(BaseAgent[Union[EventThreadingIn, Dict[str, Any]], EventThr
             reasons.append(f"matched event_type '{art_type}'")
         if geo_score >= 0.8:
             reasons.append(f"matching region '{event.get('region')}'")
+        if art_dt and evt_dt:
+            reasons.append(f"delta_days={abs((art_dt - evt_dt).days)}")
         reasons.append(f"{text_metric}: {text_sim:.2f}")
 
         rationale = "; ".join(reasons)
         return composite, rationale, text_metric
+
+    def compare_articles(
+        self,
+        article_a: Dict[str, Any],
+        article_b: Dict[str, Any],
+        match_threshold: float = 0.65,
+        review_threshold: float = 0.45,
+        a_embedding: Optional[List[float]] = None,
+        b_embedding: Optional[List[float]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Evaluate pairwise relationship between two articles directly without fallback event leakage.
+        Supports dense embeddings if supplied directly, pre-computed on article dicts, or generated.
+        Returns:
+        {
+            "score": float,
+            "relation": "MATCH" | "DISTINCT" | "REVIEW_NEEDED",
+            "rationale": str,
+            "text_metric": str,
+        }
+        """
+        emb_a = a_embedding or article_a.get("embedding")
+        if emb_a is None:
+            a_text = f"{article_a.get('title', '')}. {article_a.get('content', '')}".strip()
+            if a_text:
+                try:
+                    emb_a = generate_embedding(a_text)
+                except Exception:
+                    emb_a = None
+
+        event_ref = {
+            "id": article_a.get("id") or article_a.get("article_id") or 1,
+            "title": article_a.get("title", ""),
+            "summary": article_a.get("content", ""),
+            "region": article_a.get("region"),
+            "event_type": article_a.get("event_type", "general"),
+            "entities": article_a.get("entities", []),
+            "published_at": article_a.get("published_at") or article_a.get("date"),
+            "embedding": emb_a,
+        }
+
+        emb_b = b_embedding or article_b.get("embedding")
+        if emb_b is None:
+            b_text = f"{article_b.get('title', '')}. {article_b.get('content', '')}".strip()
+            if b_text:
+                try:
+                    emb_b = generate_embedding(b_text)
+                except Exception:
+                    emb_b = None
+
+        score, rationale, metric = self.score_match(
+            article_title=article_b.get("title", ""),
+            article_content=article_b.get("content", ""),
+            article_entities=article_b.get("entities", []),
+            article_type=article_b.get("event_type", "general"),
+            article_region=article_b.get("region"),
+            event=event_ref,
+            article_embedding=emb_b,
+            article_date=article_b.get("published_at") or article_b.get("date"),
+        )
+
+        if score >= match_threshold:
+            relation = "MATCH"
+        elif score >= review_threshold:
+            relation = "REVIEW_NEEDED"
+        else:
+            relation = "DISTINCT"
+
+        return {
+            "score": score,
+            "relation": relation,
+            "rationale": rationale,
+            "text_metric": metric,
+        }
 
     def run(self, input_data: Union[EventThreadingIn, Dict[str, Any]]) -> EventThreadingOut:
         """
@@ -283,6 +474,12 @@ class ThreadingAgent(BaseAgent[Union[EventThreadingIn, Dict[str, Any]], EventThr
                     exc,
                 )
 
+        article_date = (
+            getattr(input_data, "published_at", None)
+            if isinstance(input_data, EventThreadingIn)
+            else input_data.get("published_at") or input_data.get("date")
+        )
+
         best_score = 0.0
         best_event: Optional[Dict[str, Any]] = None
         best_rationale = ""
@@ -299,6 +496,7 @@ class ThreadingAgent(BaseAgent[Union[EventThreadingIn, Dict[str, Any]], EventThr
                 region,
                 evt,
                 article_embedding=article_embedding,
+                article_date=article_date,
             )
             if score >= 0.40:
                 link_method = (
