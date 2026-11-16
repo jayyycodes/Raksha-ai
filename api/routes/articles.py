@@ -116,3 +116,44 @@ def get_article(article_id: int, db=Depends(get_db)):
         raise HTTPException(status_code=404, detail="Article not found")
 
     return dict(row._mapping)
+
+
+# ── Stage 3 Disinformation Scoring (Milestone M9) ──────────────────────
+
+@router.get("/{article_id}/disinformation")
+def get_article_disinformation_score(article_id: int, db=Depends(get_db)):
+    """
+    Evaluates cross-source narrative divergence and disinformation risk (Stage 3).
+    Cross-checks the article against related contemporaneous articles across Rings 1–4.
+    """
+    from agents.corroboration.disinformation import DisinformationScorer
+
+    target = db.execute(
+        text("""
+            SELECT a.id, a.title, a.content, s.name AS source_name, s.ring
+            FROM articles a
+            JOIN sources s ON s.id = a.source_id
+            WHERE a.id = :id
+        """),
+        {"id": article_id},
+    ).fetchone()
+
+    if not target:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    # Fetch up to 10 temporally proximate articles for cross-source comparison
+    peers = db.execute(
+        text("""
+            SELECT a.id, a.title, a.content, s.name AS source_name, s.ring
+            FROM articles a
+            JOIN sources s ON s.id = a.source_id
+            WHERE a.id != :id
+            ORDER BY a.published_at DESC
+            LIMIT 10
+        """),
+        {"id": article_id},
+    ).fetchall()
+
+    cluster = [dict(target._mapping)] + [dict(p._mapping) for p in peers]
+    scorer = DisinformationScorer()
+    return scorer.evaluate_cluster(cluster)
