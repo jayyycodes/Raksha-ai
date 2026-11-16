@@ -504,3 +504,95 @@ export async function fetchAuditSummary(token?: string): Promise<import('./types
   }
 }
 
+// ── Stage 3 Solid: Cases & Investigations API ──────────────────────────────
+
+export async function fetchCases(params?: { status?: string; priority?: string; q?: string }): Promise<import('./types').CaseListItem[]> {
+  try {
+    const query = new URLSearchParams();
+    if (params?.status && params.status !== 'all') query.set('status', params.status);
+    if (params?.priority && params.priority !== 'all') query.set('priority', params.priority);
+    if (params?.q) query.set('q', params.q);
+
+    const res = await apiFetch(`${getBaseUrl()}/api/cases?${query.toString()}`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.cases || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchCaseById(id: number): Promise<import('./types').CaseDetailData | null> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/cases/${id}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function createCase(payload: { title: string; description?: string; priority?: string; classification?: string; tags?: string[] }): Promise<number | null> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/cases`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.id || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function updateCase(caseId: number, payload: Partial<import('./types').CaseListItem>): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/cases/${caseId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function addCaseItem(caseId: number, payload: { item_type: string; item_id: string; title?: string; analyst_notes?: string }): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/cases/${caseId}/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function addCaseNote(caseId: number, payload: { note_text: string; hypothesis?: string }): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/cases/${caseId}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function exportCaseDossier(caseId: number): Promise<any | null> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/cases/${caseId}/export`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+

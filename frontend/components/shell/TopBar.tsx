@@ -68,6 +68,8 @@ export const TopBar: React.FC<TopBarProps> = ({ onToggleSidebar }) => {
     if (pathname.startsWith('/watchlists')) return 'Intelligence Watchlists';
     if (pathname.startsWith('/review')) return 'Disambiguation Review Queue';
     if (pathname.startsWith('/sitrep')) return 'Daily Grounded SitRep';
+    if (pathname.startsWith('/cases')) return 'Investigations & Case Dossiers';
+    if (pathname.startsWith('/upload')) return 'Bring Your Own Data · Sandboxed Ingestion';
     if (pathname.startsWith('/audit')) return 'Immutable Audit Log & Compliance';
     return 'Analyst Workbench';
   };

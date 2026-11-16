@@ -72,15 +72,17 @@ from api.routes.threats import router as threats_router
 from api.routes.alerts import router as alerts_router
 from api.routes.watchlists import router as watchlists_router
 
-# ── Stage 3 Solid Routers (Auth, RBAC, Workspaces, Immutable Audit)
+# ── Stage 3 Solid Routers (Auth, RBAC, Workspaces, Immutable Audit, Cases)
 from api.routes.auth import router as auth_router
 from api.routes.audit import router as audit_router
+from api.routes.cases import router as cases_router
 
 app.include_router(articles_router, prefix="/api")
 app.include_router(sources_router, prefix="/api")
 app.include_router(stats_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(audit_router, prefix="/api")
+app.include_router(cases_router, prefix="/api")
 app.include_router(graph_router, prefix="/api")
 app.include_router(map_router, prefix="/api")
 app.include_router(profiles_router, prefix="/api")

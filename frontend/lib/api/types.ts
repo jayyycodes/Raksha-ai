@@ -375,3 +375,46 @@ export interface AuditSummaryData {
   action_breakdown: Array<{ action: string; count: number }>;
 }
 
+export interface CaseListItem {
+  id: number;
+  title: string;
+  description?: string;
+  status: 'active' | 'in_review' | 'closed' | 'archived';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  classification: string;
+  lead_analyst_id?: number;
+  lead_analyst_name?: string;
+  workspace_id?: number;
+  workspace_name?: string;
+  tags: string[];
+  evidence_count: number;
+  notes_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CaseEvidenceItem {
+  id: number;
+  item_type: 'article' | 'entity' | 'event' | 'incident';
+  item_id: string;
+  title: string;
+  analyst_notes?: string;
+  added_by_name?: string;
+  added_at: string;
+}
+
+export interface CaseNoteItem {
+  id: number;
+  note_text: string;
+  hypothesis?: string;
+  analyst_name?: string;
+  analyst_role?: string;
+  created_at: string;
+}
+
+export interface CaseDetailData {
+  case: CaseListItem;
+  evidence_items: CaseEvidenceItem[];
+  notes: CaseNoteItem[];
+}
+

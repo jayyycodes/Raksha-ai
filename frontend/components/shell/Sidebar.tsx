@@ -24,6 +24,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
   const isWatchlistsActive = pathname.startsWith('/watchlists');
   const isReviewActive = pathname.startsWith('/review');
   const isSitrepActive = pathname.startsWith('/sitrep');
+  const isCasesActive = pathname.startsWith('/cases');
+  const isUploadActive = pathname.startsWith('/upload');
   const isAuditActive = pathname.startsWith('/audit');
 
   return (
@@ -218,6 +220,34 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
             >
               <span className="text-base">📑</span>
               <span>Situation Report</span>
+            </Link>
+
+            <Link
+              href="/cases"
+              onClick={onNavigate}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-navy',
+                isCasesActive
+                  ? 'bg-subtle-fill text-primary-navy font-bold border-l-2 border-primary-navy'
+                  : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
+              )}
+            >
+              <span className="text-base">💼</span>
+              <span>Cases & Dossiers</span>
+            </Link>
+
+            <Link
+              href="/upload"
+              onClick={onNavigate}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-navy',
+                isUploadActive
+                  ? 'bg-subtle-fill text-primary-navy font-bold border-l-2 border-primary-navy'
+                  : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
+              )}
+            >
+              <span className="text-base">📥</span>
+              <span>Upload Custom Data</span>
             </Link>
 
             <div className="pt-3 mt-3 border-t border-border/60">
