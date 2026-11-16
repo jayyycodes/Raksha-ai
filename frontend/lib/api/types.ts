@@ -338,3 +338,40 @@ export interface ProfileNoteItem {
   created_at: string;
 }
 
+export interface UserProfile {
+  id: number;
+  email: string;
+  full_name: string;
+  role: 'admin' | 'analyst' | 'viewer';
+}
+
+export interface WorkspaceItem {
+  id: number;
+  name: string;
+  description?: string;
+  is_shared: boolean;
+  owner_id?: number;
+  owner_name?: string;
+}
+
+export interface AuditEventItem {
+  id: number;
+  user_id?: number;
+  user_email: string;
+  user_name: string;
+  user_role: string;
+  action: string;
+  entity_type?: string;
+  entity_id?: string;
+  ip_address?: string;
+  user_agent?: string;
+  details: Record<string, any>;
+  created_at: string;
+}
+
+export interface AuditSummaryData {
+  total_audit_records: number;
+  records_last_24h: number;
+  action_breakdown: Array<{ action: string; count: number }>;
+}
+

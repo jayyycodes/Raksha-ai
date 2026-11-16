@@ -444,3 +444,63 @@ export async function addProfileNote(profileId: number, note: string): Promise<i
   }
 }
 
+// ── Stage 3 Solid: Auth, RBAC & Audit API ──────────────────────────────────
+
+export async function loginUser(email: string, password: string): Promise<{ access_token: string; user: import('./types').UserProfile } | null> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.error('Login error:', err);
+    return null;
+  }
+}
+
+export async function fetchCurrentUser(token?: string): Promise<{ user: import('./types').UserProfile; workspaces: import('./types').WorkspaceItem[] } | null> {
+  try {
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await apiFetch(`${getBaseUrl()}/api/auth/me`, { headers, cache: 'no-store' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchAuditLogs(params?: { action?: string; entity_type?: string; page?: number; limit?: number }, token?: string): Promise<{ total: number; page: number; events: import('./types').AuditEventItem[] }> {
+  try {
+    const query = new URLSearchParams();
+    if (params?.action) query.set('action', params.action);
+    if (params?.entity_type) query.set('entity_type', params.entity_type);
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await apiFetch(`${getBaseUrl()}/api/audit?${query.toString()}`, { headers, cache: 'no-store' });
+    if (!res.ok) return { total: 0, page: 1, events: [] };
+    return await res.json();
+  } catch {
+    return { total: 0, page: 1, events: [] };
+  }
+}
+
+export async function fetchAuditSummary(token?: string): Promise<import('./types').AuditSummaryData | null> {
+  try {
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await apiFetch(`${getBaseUrl()}/api/audit/summary`, { headers, cache: 'no-store' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+

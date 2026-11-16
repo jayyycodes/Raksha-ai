@@ -24,6 +24,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
   const isWatchlistsActive = pathname.startsWith('/watchlists');
   const isReviewActive = pathname.startsWith('/review');
   const isSitrepActive = pathname.startsWith('/sitrep');
+  const isAuditActive = pathname.startsWith('/audit');
 
   return (
     <aside
@@ -44,7 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
                 RAKSHA AI
               </span>
               <span className="text-[10px] uppercase font-bold text-accent-saffron ml-1.5 px-1.5 py-0.5 rounded bg-accent-saffron-light border border-accent-saffron/20">
-                STAGE 2
+                STAGE 3
               </span>
             </div>
           </div>
@@ -218,6 +219,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
               <span className="text-base">📑</span>
               <span>Situation Report</span>
             </Link>
+
+            <div className="pt-3 mt-3 border-t border-border/60">
+              <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                Governance & Security
+              </div>
+              <Link
+                href="/audit"
+                onClick={onNavigate}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2 rounded text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-navy',
+                  isAuditActive
+                    ? 'bg-subtle-fill text-primary-navy font-bold border-l-2 border-primary-navy'
+                    : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
+                )}
+              >
+                <span className="text-base">🛡️</span>
+                <span>Audit & Lineage</span>
+              </Link>
+            </div>
           </nav>
         </div>
       </div>

@@ -68,6 +68,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onToggleSidebar }) => {
     if (pathname.startsWith('/watchlists')) return 'Intelligence Watchlists';
     if (pathname.startsWith('/review')) return 'Disambiguation Review Queue';
     if (pathname.startsWith('/sitrep')) return 'Daily Grounded SitRep';
+    if (pathname.startsWith('/audit')) return 'Immutable Audit Log & Compliance';
     return 'Analyst Workbench';
   };
 
@@ -188,6 +189,14 @@ export const TopBar: React.FC<TopBarProps> = ({ onToggleSidebar }) => {
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
+        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded bg-card text-text-primary text-xs border border-border shadow-xs">
+          <span className="text-[11px]">👤</span>
+          <span className="font-semibold text-[11px] text-text-primary">Lead Analyst</span>
+          <span className="text-[9px] uppercase font-bold text-accent-saffron px-1.5 py-0.5 rounded bg-accent-saffron-light border border-accent-saffron/20">
+            Analyst
+          </span>
+        </div>
+
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-subtle-fill text-text-secondary text-xs border border-border">
           <span className="w-1.5 h-1.5 rounded-full bg-status-green animate-pulse" />
           <span className="font-semibold text-[11px]">System Active</span>

@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
 from common.db import get_db as _get_db
+from common.cache import cache_get, cache_set
 from common.schemas.map import MapIncident, MapResponse
 
 router = APIRouter(prefix="/map", tags=["Geospatial Map"])
@@ -136,6 +137,11 @@ def get_map_incidents(
     if not isinstance(limit, int):
         limit = 50
 
+    cache_key = f"api:map:{ring}:{threat_level_min}:{limit}"
+    cached_data = cache_get(cache_key)
+    if cached_data is not None:
+        return MapResponse(**cached_data)
+
     where_clauses = ["a.is_processed = TRUE"]
     params: dict = {"limit": limit * 2}
 
@@ -234,4 +240,6 @@ def get_map_incidents(
         if len(incidents) >= limit:
             break
 
-    return MapResponse(incidents=incidents, total=len(incidents))
+    response_obj = MapResponse(incidents=incidents, total=len(incidents))
+    cache_set(cache_key, response_obj.model_dump(mode="json"), ttl_seconds=60)
+    return response_obj
