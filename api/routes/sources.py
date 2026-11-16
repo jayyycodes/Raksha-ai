@@ -82,3 +82,55 @@ def trigger_sources_refresh(background_tasks: BackgroundTasks):
         "status": "triggered",
         "message": "Live scrape cycle initiated across all 40 monitored sources.",
     }
+
+
+# ── Stage 3 Connector Framework Endpoints (Milestone M7) ───────────────
+
+@router.get("/connectors")
+def list_connectors():
+    """
+    Stage 3 Connector Registry inspection:
+    Lists all 96+ plug-in connectors across Rings 1–4, APIs, and Social/Telegram.
+    """
+    from connectors.registry import registry
+    registry.populate_stage3_sources()
+    return {
+        "total_connectors": registry.total_count(),
+        "connectors": [c.to_dict() for c in registry.list_connectors()],
+    }
+
+
+@router.get("/connectors/health")
+def connectors_health_report():
+    """
+    Health checks across all 96+ active connectors.
+    """
+    from connectors.registry import registry
+    registry.populate_stage3_sources()
+    return {
+        "total": registry.total_count(),
+        "report": registry.health_report(),
+    }
+
+
+@router.post("/connectors/{connector_name}/trigger")
+def trigger_connector_ingestion(connector_name: str, background_tasks: BackgroundTasks):
+    """
+    On-demand ingestion from a single plug-in connector.
+    """
+    from connectors.registry import registry
+    registry.populate_stage3_sources()
+    conn = registry.get(connector_name)
+    if not conn:
+        return {"status": "error", "message": f"Connector '{connector_name}' not found."}
+
+    def _task():
+        items = conn.fetch_articles()
+        return len(items)
+
+    background_tasks.add_task(_task)
+    return {
+        "status": "triggered",
+        "connector": connector_name,
+        "source_type": conn.source_type,
+    }

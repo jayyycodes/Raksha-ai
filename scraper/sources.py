@@ -69,4 +69,14 @@ RSS_SOURCES = [
     {"name": "RUSI Commentary",          "url": "https://www.rusi.org",                "rss_url": "https://www.rusi.org/rss/all.xml",                                     "ring": RING_GLOBAL,    "country": "Global",      "language": "en"},
 ]
 
+from scraper.sources_stage3 import STAGE3_SOURCES_96
+
+# Backward-compatible accessor
+def get_sources(stage: int = 2) -> list[dict]:
+    """Return monitored sources for Stage 2 (40 feeds) or Stage 3 (96+ sources)."""
+    if stage >= 3:
+        return STAGE3_SOURCES_96
+    return RSS_SOURCES
+
+STAGE3_SOURCES = STAGE3_SOURCES_96
 KEYWORDS = NEWSAPI_KEYWORDS
