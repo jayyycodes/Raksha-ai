@@ -97,13 +97,13 @@ def list_uploads(
         }]
         total = 1
 
-        return {
-            "total": total,
-            "limit": limit,
-            "offset": offset,
-            "workspace_id": ws_id,
-            "items": items,
-        }
+    return {
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "workspace_id": ws_id,
+        "items": items,
+    }
 
 
 @router.post("")
