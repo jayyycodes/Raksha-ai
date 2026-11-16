@@ -4,18 +4,22 @@ import { MOCK_ARTICLES, MOCK_SOURCES_HEALTH, MOCK_STATS, MOCK_GRAPH_DATA } from 
 
 export function getBaseUrl(): string {
   if (typeof window === 'undefined') {
-    return process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    return process.env.INTERNAL_API_URL || 'http://127.0.0.1:8000';
   }
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 }
 
 export async function apiFetch(input: string | URL, init?: RequestInit): Promise<Response> {
-  const urlStr = input.toString();
+  let urlStr = input.toString();
+  // On Node.js / Windows server-side, localhost often resolves to ::1 (IPv6) which fails against IPv4-only uvicorn.
+  if (typeof window === 'undefined' && urlStr.includes('http://localhost:8000')) {
+    urlStr = urlStr.replace('http://localhost:8000', 'http://127.0.0.1:8000');
+  }
   try {
-    return await fetch(input, init);
+    return await fetch(urlStr, init);
   } catch (err: any) {
-    if (typeof window === 'undefined' && urlStr.includes('localhost:8000')) {
-      const dockerUrl = urlStr.replace('http://localhost:8000', 'http://api:8000');
+    if (typeof window === 'undefined') {
+      const dockerUrl = urlStr.replace('http://127.0.0.1:8000', 'http://api:8000').replace('http://localhost:8000', 'http://api:8000');
       try {
         return await fetch(dockerUrl, init);
       } catch {
