@@ -45,7 +45,10 @@ export function adaptArticle(raw: any): Article {
   return {
     id: Number(raw.id),
     title: raw.title || 'Untitled Report',
-    summary: raw.content || raw.summary || raw.translated_text || 'No summary excerpt available for this article.',
+    summary: raw.summary || raw.content || raw.translated_text || 'No summary excerpt available for this article.',
+    positive_impact_in: raw.positive_impact_in || undefined,
+    negative_impact_in: raw.negative_impact_in || undefined,
+    strategic_implications: raw.strategic_implications || undefined,
     url: raw.url || '#',
     source_name: raw.source_name || raw.source?.name || 'Open Source Wire',
     ring: mapRing(raw.ring || raw.source?.ring),
@@ -90,7 +93,11 @@ export function adaptStats(raw: any): SystemStats {
   return {
     total_articles: Number(raw.total_articles || 0),
     todays_articles: Number(raw.todays_articles || 0),
+    latest_batch_articles: Number(raw.latest_batch_articles || 0),
     processed_articles: Number(raw.processed_articles || 0),
+    total_sources: Number(raw.total_sources || 40),
+    active_sources: Number(raw.active_sources || 40),
+    sources_with_data: Number(raw.sources_with_data || 0),
     last_scrape_at: raw.last_scrape_at || null,
     per_ring: raw.per_ring || { '1': 0, '2': 0, '3': 0, '4': 0 },
     per_source: Array.isArray(raw.per_source) ? raw.per_source : [],

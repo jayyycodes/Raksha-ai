@@ -9,7 +9,11 @@ import { Article, SourceHealth, SystemStats } from './types';
 export const MOCK_STATS: SystemStats = {
   total_articles: 148,
   todays_articles: 32,
+  latest_batch_articles: 32,
   processed_articles: 148,
+  total_sources: 40,
+  active_sources: 40,
+  sources_with_data: 24,
   last_scrape_at: new Date(Date.now() - 18 * 60 * 1000).toISOString(),
   per_ring: {
     '1': 58,
