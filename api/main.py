@@ -30,6 +30,19 @@ if os.getenv("CORS_ORIGINS"):
         [o.strip().rstrip("/") for o in os.getenv("CORS_ORIGINS").split(",") if o.strip()]
     )
 
+# Sentry Error Tracking Initialization (if configured)
+if os.getenv("SENTRY_DSN"):
+    try:
+        import sentry_sdk
+        sentry_sdk.init(
+            dsn=os.getenv("SENTRY_DSN"),
+            environment=os.getenv("ENVIRONMENT", "production"),
+            traces_sample_rate=0.2,
+        )
+        logger.info("Sentry error tracking initialized")
+    except Exception as exc:
+        logger.warning(f"Could not initialize Sentry: {exc}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(dict.fromkeys(_allowed_origins)),
@@ -38,11 +51,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from common.metrics import PrometheusMetricsMiddleware, get_metrics_response
+app.add_middleware(PrometheusMetricsMiddleware)
 
-# ── Health ──────────────────────────────────────────────────────
+
+# ── Health & Observability ──────────────────────────────────────────
 @app.get("/", tags=["Health"])
 def root():
-    return {"status": "ok", "service": "raksha-ai", "stage": "stage2-mid"}
+    return {"status": "ok", "service": "raksha-ai", "stage": "stage3-solid"}
+
+
+@app.get("/metrics", tags=["Observability"], response_class=get_metrics_response.__annotations__.get("return"))
+def prometheus_metrics():
+    """Prometheus metrics scrape endpoint."""
+    return get_metrics_response()
 
 
 @app.get("/api/health", tags=["Health"])
