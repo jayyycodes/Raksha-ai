@@ -31,6 +31,7 @@ logger = get_logger(__name__)
 PREFIX_PATTERN = re.compile(
     r"^(?:(?:General|Gen|Lt Gen|Lt\. Gen|Lieutenant General|Maj Gen|Maj\. Gen|Major General|"
     r"Brigadier|Brig|Col|Colonel|Maj|Major|Captain|Capt|Lieutenant|Lt|"
+    r"Subedar Major|Subedar|Naib Subedar|Havildar|Naik|Lance Naik|"
     r"Air Chief Marshal|Air Marshal|Air Commodore|Group Captain|Wing Commander|Squadron Leader|"
     r"Admiral|Vice Admiral|Rear Admiral|Commodore|"
     r"President|Prime Minister|PM|Defence Minister|Minister|Shri|Smt|Mr|Mrs|Ms|Dr)\.?\s+)+",
@@ -61,22 +62,22 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
     # Organizations — India
     "Indian Army": (
         "ORGANISATION",
-        ["ia", "indian army", "army of india", "bharatiya thalsena", "thalsena"],
+        ["ia", "indian army", "army of india", "bharatiya thalsena", "thalsena", "भारतीय सेना", "ਭਾਰਤੀ ਫੌਜ", "ভারতীয় সেনা"],
         "Indian land warfare ground forces defence infantry armoured military troops Northern Command",
     ),
     "Indian Air Force": (
         "ORGANISATION",
-        ["iaf", "indian air force", "air force of india", "bharatiya vayu sena", "vayu sena"],
+        ["iaf", "indian air force", "air force of india", "bharatiya vayu sena", "vayu sena", "भारतीय वायु सेना"],
         "Indian air warfare aerial defence fighter jets transport squadron aircraft combat pilots",
     ),
     "Indian Navy": (
         "ORGANISATION",
-        ["in", "indian navy", "navy of india", "bharatiya nausena", "nausena"],
+        ["in", "indian navy", "navy of india", "bharatiya nausena", "nausena", "भारतीय नौसेना", "ভারতীয় নৌসেনা"],
         "Indian maritime naval defence aircraft carriers warships submarines fleet Western Naval Command",
     ),
     "Defence Research and Development Organisation": (
         "ORGANISATION",
-        ["drdo", "defence research and development organisation", "defense research and development organisation", "defence research & development organisation"],
+        ["drdo", "defence research and development organisation", "defense research and development organisation", "defence research & development organisation", "डीआरडीओ", "ডিআরডিও"],
         "Defence research military technology weapons missiles laboratory DRDO indigenous systems testing",
     ),
     "Indian Space Research Organisation": (
@@ -112,28 +113,43 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
     ),
     "Pakistan Army": (
         "ORGANISATION",
-        ["pak army", "pakistan army"],
+        ["pak army", "pakistan army", "پاک فوج"],
         "Pakistani ground forces military Rawalpindi General Headquarters border corps",
     ),
     "Pakistan Air Force": (
         "ORGANISATION",
-        ["paf", "pakistan air force"],
+        ["paf", "pakistan air force", "پاکستان ائیر فورس"],
         "Pakistani aerial military fighter jets combat pilots airbases interception",
     ),
     "Pakistan Navy": (
         "ORGANISATION",
-        ["pn", "pakistan navy"],
+        ["pn", "pakistan navy", "پاکستان نیوی"],
         "Pakistani maritime naval fleet Arabian Sea coastal defence Karachi naval base",
     ),
     "Inter-Services Intelligence": (
         "ORGANISATION",
-        ["isi", "inter-services intelligence", "inter services intelligence"],
+        ["isi", "inter-services intelligence", "inter services intelligence", "آئی ایس آئی"],
         "Pakistani military intelligence agency espionage covert security operations Islamabad",
     ),
     "Jaish-e-Mohammed": (
         "ORGANISATION",
-        ["jem", "jaish-e-mohammed", "jaish-e-mohammad", "jaish-i-mohammed", "jaish e mohammed", "jaish-i-muhammad"],
+        ["jem", "jaish-e-mohammed", "jaish-e-mohammad", "jaish-i-mohammed", "jaish e mohammed", "jaish-i-muhammad", "جیش محمد"],
         "Designated terrorist militant organization Kashmir insurgency cross-border attacks suicide bombings",
+    ),
+    "Border Security Force": (
+        "ORGANISATION",
+        ["bsf", "border security force", "सीमा सुरक्षा बल", "ਸੀਮਾ ਸੁਰੱਖਿਆ ਬਲ", "ਬੀਐਸਐਫ"],
+        "Indian primary border guarding paramilitary police force Ministry of Home Affairs western and eastern frontiers",
+    ),
+    "Western Air Command": (
+        "ORGANISATION",
+        ["wac", "western air command", "iaf western air command"],
+        "Operational command Indian Air Force responsible for air defense along northern and western borders Subroto Park New Delhi",
+    ),
+    "Eastern Air Command": (
+        "ORGANISATION",
+        ["eac", "eastern air command", "iaf eastern air command"],
+        "Operational command Indian Air Force responsible for air defense along northeastern borders Shillong Meghalaya",
     ),
     "Lashkar-e-Taiba": (
         "ORGANISATION",
@@ -143,23 +159,103 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
     # Strategic Locations
     "Line of Actual Control": (
         "LOCATION",
-        ["lac", "line of actual control", "sino-indian lac", "lac border"],
+        ["lac", "line of actual control", "sino-indian lac", "lac border", "वास्तविक नियंत्रण रेखा"],
         "Sino-Indian border demarcation line Eastern Ladakh Arunachal Pradesh military standoff patrol points",
     ),
     "Line of Control": (
         "LOCATION",
-        ["loc", "line of control", "indo-pak loc", "loc border", "ceasefire line"],
+        ["loc", "line of control", "indo-pak loc", "loc border", "ceasefire line", "لائن آف کنٹرول", "کنٹرول لائن"],
         "Indo-Pak military boundary Jammu and Kashmir Poonch Rajouri ceasefire cross-border firing",
     ),
     "Siachen Glacier": (
         "LOCATION",
-        ["siachen", "siachen glacier", "saltoro ridge"],
+        ["siachen", "siachen glacier", "saltoro ridge", "syachen", "siyachen", "सियाचिन ग्लेशियर", "सियाचिन", "سیاچین"],
         "High-altitude military outpost Karakoram Range Saltoro ridge glacier northern Ladakh extreme cold",
     ),
     "Galwan Valley": (
         "LOCATION",
-        ["galwan", "galwan valley", "patrolling point 14", "pp14"],
+        ["galwan", "galwan valley", "patrolling point 14", "pp14", "गलवान घाटी"],
         "Eastern Ladakh river valley June 2020 military clash patrolling point 14 disengagement",
+    ),
+    "Eastern Ladakh": (
+        "LOCATION",
+        ["eastern ladakh", "east ladakh", "पूर्व लादाख"],
+        "Strategic high-altitude frontier region Sino-Indian Line of Actual Control deployment",
+    ),
+    "Kupwara": (
+        "LOCATION",
+        ["kupwara", "kupwada"],
+        "Frontier district Line of Control North Kashmir border security counter infiltration",
+    ),
+    "Akhnoor": (
+        "LOCATION",
+        ["akhnoor", "akhnur"],
+        "Border town sector Line of Control Jammu district international border forward defence",
+    ),
+    "Poonch": (
+        "LOCATION",
+        ["poonch", "punch sector", "پونچھ"],
+        "Border district Line of Control Jammu division cross-border shelling ceasefire monitoring",
+    ),
+    "Samba": (
+        "LOCATION",
+        ["samba", "samba sector"],
+        "Border district international border Jammu division cross-border tunnels drone detection",
+    ),
+    "Amritsar": (
+        "LOCATION",
+        ["amritsar", "ਅੰਮ੍ਰਿਤਸਰ"],
+        "Punjab frontier district international border BSF anti-drone interdiction",
+    ),
+    "Ferozepur": (
+        "LOCATION",
+        ["ferozepur", "ferozepore", "ਫਿਰੋਜ਼ਪੁਰ"],
+        "Punjab frontier district international border Hussainiwala sector BSF riverine border",
+    ),
+    "Gurdaspur": (
+        "LOCATION",
+        ["gurdaspur", "ਗੁਰਦਾਸਪੁਰ"],
+        "Punjab frontier district international border counter infiltration security",
+    ),
+    "Pathankot": (
+        "LOCATION",
+        ["pathankot", "pathankot airbase", "ਪਠਾਨਕੋਟ"],
+        "Strategic military station air force base Punjab Jammu border transit hub",
+    ),
+    "Siliguri": (
+        "LOCATION",
+        ["siliguri", "siliguri corridor", "শিলিগুড়ি"],
+        "Strategic narrow corridor connecting Northeast India West Bengal defense trijunction",
+    ),
+    "Hasimara": (
+        "LOCATION",
+        ["hasimara", "hasimara airbase", "হাসিমারা"],
+        "Strategic Air Force Station Eastern Air Command Rafale fighter squadron north Bengal",
+    ),
+    "Kolkata": (
+        "LOCATION",
+        ["kolkata", "calcutta", "কলকাতায়", "কলকাতা"],
+        "Capital West Bengal Eastern Command headquarters Fort William defense research naval shipyard",
+    ),
+    "Bay of Bengal": (
+        "LOCATION",
+        ["bay of bengal", "bengal bay", "বঙ্গোপসাগরে", "বঙ্গোপসাগর"],
+        "Strategic maritime body Indian Ocean eastern seaboard naval exercises",
+    ),
+    "Arabian Sea": (
+        "LOCATION",
+        ["arabian sea", "بحیرہ عرب"],
+        "Strategic maritime basin Indian Ocean western seaboard naval patrols",
+    ),
+    "Rajasthan": (
+        "LOCATION",
+        ["rajasthan", "pokhran", "राजस्थान"],
+        "Western border state military strike ranges desert exercises Pokhran firing test",
+    ),
+    "Odisha": (
+        "LOCATION",
+        ["odisha", "orissa", "chandipur", "ओडिशा"],
+        "Eastern coastal state missile testing range ITR Chandipur integrated test range",
     ),
     "Pangong Tso": (
         "LOCATION",
@@ -178,18 +274,33 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
     ),
     "Rawalpindi": (
         "LOCATION",
-        ["rawalpindi", "ravalpindi", "pindi"],
+        ["rawalpindi", "ravalpindi", "pindi", "راولپنڈی"],
         "Pakistani garrison city military General Headquarters Punjab Pakistan near Islamabad",
     ),
     "Islamabad": (
         "LOCATION",
-        ["islamabad", "islamabad capital"],
+        ["islamabad", "islamabad capital", "اسلام آباد"],
         "Capital city Pakistan federal administration diplomatic foreign ministry",
     ),
     "New Delhi": (
         "LOCATION",
-        ["delhi", "new delhi", "national capital region"],
+        ["delhi", "new delhi", "national capital region", "नई दिल्ली"],
         "Capital city India South Block North Block Ministry of Defence national leadership",
+    ),
+    "Ladakh": (
+        "LOCATION",
+        ["ladakh", "लद्दाख"],
+        "High-altitude strategic union territory Northern India Line of Actual Control",
+    ),
+    "India": (
+        "LOCATION",
+        ["india", "bharat", "ভারত"],
+        "Sovereign South Asian democratic nation New Delhi armed forces",
+    ),
+    "China": (
+        "LOCATION",
+        ["china", "peoples republic of china", "prc", "চীন"],
+        "East Asian nation Beijing Central Military Commission PLA",
     ),
     "Beijing": (
         "LOCATION",
@@ -199,22 +310,22 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
     # Equipment & Weapons
     "BrahMos": (
         "EQUIPMENT",
-        ["brahmos", "brahmos missile", "brahmos supersonic cruise missile", "brahmos aerospace"],
+        ["brahmos", "brahmos missile", "brahmos supersonic cruise missile", "brahmos aerospace", "ब्रह्मोस"],
         "Supersonic cruise missile joint venture DRDO NPO Mashinostroyeniya precision strike weapon",
     ),
     "Dassault Rafale": (
         "EQUIPMENT",
-        ["rafale", "dassault rafale", "rafale fighter", "rafale jets"],
+        ["rafale", "dassault rafale", "rafale fighter", "rafale jets", "রাফাল"],
         "French multirole twin-engine fighter aircraft Indian Air Force Meteor missiles Ambala Hasimara",
     ),
     "HAL Tejas": (
         "EQUIPMENT",
-        ["tejas", "hal tejas", "lca tejas", "light combat aircraft tejas"],
+        ["tejas", "hal tejas", "lca tejas", "light combat aircraft tejas", "तेजस"],
         "Indigenous single-engine light combat aircraft Hindustan Aeronautics Limited Indian Air Force",
     ),
     "Sukhoi Su-30MKI": (
         "EQUIPMENT",
-        ["su-30mki", "su-30", "su30", "sukhoi-30", "sukhoi su-30"],
+        ["su-30mki", "su-30", "su30", "sukhoi-30", "sukhoi su-30", "सुखोई-30mki", "सुखोई-30"],
         "Twin-engine air superiority multirole combat fighter jet license built HAL Indian Air Force",
     ),
     "S-400 Triumf": (
@@ -224,7 +335,7 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
     ),
     "Agni-V": (
         "EQUIPMENT",
-        ["agni-v", "agni 5", "agni-5", "agni v"],
+        ["agni-v", "agni 5", "agni-5", "agni v", "अग्नि-5"],
         "Canisterised intercontinental ballistic missile nuclear capable strategic strike MIRV DRDO",
     ),
     "Agni-P": (
@@ -234,7 +345,7 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
     ),
     "INS Vikrant": (
         "EQUIPMENT",
-        ["ins vikrant", "vikrant", "iac-1"],
+        ["ins vikrant", "vikrant", "iac-1", "आईएनएस विक्रांत"],
         "Indigenous aircraft carrier Indian Navy Cochin Shipyard MiG-29K aviation strike carrier",
     ),
     "INS Vikramaditya": (
@@ -244,7 +355,7 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
     ),
     "JF-17 Thunder": (
         "EQUIPMENT",
-        ["jf-17", "jf17", "jf-17 thunder", "fc-1 xiaolong"],
+        ["jf-17", "jf17", "jf-17 thunder", "fc-1 xiaolong", "جے ایف-17"],
         "Single-engine multirole combat aircraft Pakistan Air Force Chengdu PAC Kamra",
     ),
     "Chengdu J-20": (
@@ -252,7 +363,76 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
         ["j-20", "j20", "chengdu j-20", "mighty dragon"],
         "Fifth-generation stealth air superiority twin-jet fighter aircraft People's Liberation Army Air Force",
     ),
+    # Key Strategic Persons
+    "Upendra Dwivedi": (
+        "PERSON",
+        ["upendra dwivedi", "gen upendra dwivedi", "general upendra dwivedi", "lt gen upendra dwivedi", "उपेंद्र द्विवेदी"],
+        "Chief of the Army Staff Indian Army former Northern Army Commander senior military leader",
+    ),
+    "Rajnath Singh": (
+        "PERSON",
+        ["rajnath singh", "defence minister rajnath singh", "rajnath", "राजनाथ सिंह"],
+        "Union Minister of Defence Government of India South Block apex defense policymaker",
+    ),
+    "Asim Munir": (
+        "PERSON",
+        ["asim munir", "general asim munir", "gen asim munir", "syed asim munir", "عاصم منیر"],
+        "Chief of Army Staff Pakistan Army General Headquarters Rawalpindi",
+    ),
 }
+
+
+def normalize_indic_transliteration(text: str) -> Tuple[str, bool, str]:
+    """
+    Normalizes specific composite name connectors and vetted orthographic variants
+    found in South Asian defense English transliterations (e.g. Urdu/Hindi romanizations):
+      - Connectors: '-e-', '-i-', '-ul-', '-al-' standardized to consistent tokens.
+      - Suffixes: 'muhammad' / 'mohammad' -> 'mohammed'.
+      - Geographic phonetic variants:
+          'ravalpindi' -> 'rawalpindi'
+          'kupwada' -> 'kupwara'
+          'akhnur' -> 'akhnoor'
+          'syachen' / 'siyachen' -> 'siachen'
+    NOTE: Does NOT perform destructive blind folds (such as arbitrary w->v or oo->u)
+    to prevent corrupting legitimate English words (such as 'west' -> 'vest' or 'punch' -> 'poonch').
+    Returns: (normalized_text, was_transformed, rule_applied)
+    """
+    if not text:
+        return "", False, "empty_input"
+    t = text.lower().strip()
+    if t in COMMON_ENGLISH_WORDS or t in COMMON_AMBIGUOUS_NAMES:
+        return t, False, "common_word_guard"
+
+    orig = t
+    rule = "none"
+
+    if re.search(r"[\-\_\s]+(?:e|i|ul|al)[\-\_\s]+", t):
+        t = re.sub(r"[\-\_\s]+(?:e|i|ul|al)[\-\_\s]+", " ", t)
+        rule = "connector_normalization"
+    if re.search(r"\bhizb(?:ul)?\b", t):
+        t = re.sub(r"\bhizb(?:ul)?\b", "hizb", t)
+        rule = "organization_alias"
+    if re.search(r"m[ou]hamm?[ae]d", t):
+        t = re.sub(r"m[ou]hamm?[ae]d", "mohammed", t)
+        rule = "name_suffix_mohammed"
+    if re.search(r"\bravalpindi\b", t):
+        t = re.sub(r"\bravalpindi\b", "rawalpindi", t)
+        rule = "phonetic_ravalpindi"
+    if re.search(r"\bkupwada\b", t):
+        t = re.sub(r"\bkupwada\b", "kupwara", t)
+        rule = "phonetic_kupwada"
+    if re.search(r"\bakhnur\b", t):
+        t = re.sub(r"\bakhnur\b", "akhnoor", t)
+        rule = "phonetic_akhnur"
+    if re.search(r"\bs[iy]+achen\b", t):
+        t = re.sub(r"\bs[iy]+achen\b", "siachen", t)
+        rule = "phonetic_siachen"
+
+    t = re.sub(r"[^\w\s]", "", t)
+    t = re.sub(r"\s+", " ", t).strip()
+
+    was_transformed = (t != orig)
+    return t, was_transformed, rule
 
 
 def normalize_indic_romanization_variants(text: str) -> str:
@@ -265,18 +445,8 @@ def normalize_indic_romanization_variants(text: str) -> str:
     NOTE: Does NOT perform destructive blind folds (such as arbitrary w->v or oo->u)
     to prevent corrupting legitimate English words (such as 'west' -> 'vest' or 'punch' -> 'poonch').
     """
-    if not text:
-        return ""
-    t = text.lower().strip()
-    if t in COMMON_ENGLISH_WORDS or t in COMMON_AMBIGUOUS_NAMES:
-        return t
-    # Normalize connectors in composite names (Jaish-e-Mohammed, Hizb-ul-Mujahideen)
-    t = re.sub(r"[\-\_\s]+(?:e|i|ul|al)[\-\_\s]+", " ", t)
-    t = re.sub(r"\bhizb(?:ul)?\b", "hizb", t)
-    t = re.sub(r"m[ou]hamm?[ae]d", "mohammed", t)
-    t = re.sub(r"\bravalpindi\b", "rawalpindi", t)
-    t = re.sub(r"[^\w\s]", "", t)
-    return re.sub(r"\s+", " ", t).strip()
+    norm, _, _ = normalize_indic_transliteration(text)
+    return norm
 
 
 def normalize_entity_name(name: str) -> str:
@@ -433,7 +603,25 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "workspace_id": norm_ws,
             }
 
-        # Guard 2: Check for ambiguous common single-token generic names
+        # Guard 2: Conservative Person Resolution (Mandatory Requirement 3)
+        # Person mentions with ranks but ambiguous names (e.g. 'General Singh') must remain in review_queue.
+        # Organizational or geographical context alone must not trigger automatic merging.
+        from engine.ner import parse_structured_person_mention
+        person_info = parse_structured_person_mention(raw_name)
+        if person_info.get("extracted_rank") and person_info.get("is_ambiguous"):
+            return {
+                "raw_name": raw_name,
+                "canonical_name": person_info.get("normalized_name") or clean_name or trimmed,
+                "entity_type": "PERSON",
+                "confidence": 0.50,
+                "action": "review_queue",
+                "decision": "review_queue",
+                "match_method": "ambiguous_person_guard",
+                "explanation": f"Person mention '{raw_name}' with rank lacks full identity specificity ({person_info.get('evidence')}); held in review_queue.",
+                "workspace_id": norm_ws,
+            }
+
+        # Guard 3: Check for ambiguous common single-token generic names
         if len(tokens) == 1 and tokens[0] in COMMON_AMBIGUOUS_NAMES:
             return {
                 "raw_name": raw_name,
@@ -452,11 +640,6 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
         if pos_record:
             can_name = pos_record.target_canonical
             # Authoritative defense canonical registry validation
-            # NOTE: CANONICAL_DEFENSE_ENTITIES is an authoritative domain registry specifically for defense
-            # ORGANISATION, LOCATION, and EQUIPMENT entities (Stage 2/3 Floor 2 scope).
-            # It is NOT a universal registry for all entity types (e.g., PERSON and EVENT profiles are
-            # managed in entity_nodes / ProfilingAgent). For safety, feedback targets outside this defense
-            # registry or specifying unsupported entity types fail closed to prevent unverified auto-linking.
             auth_entry = None
             auth_can_name = None
             for c_name, c_tuple in CANONICAL_DEFENSE_ENTITIES.items():
@@ -465,7 +648,7 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                     auth_can_name = c_name
                     break
 
-            if auth_entry is None or auth_entry[0] not in ("ORGANISATION", "LOCATION", "EQUIPMENT"):
+            if auth_entry is None or auth_entry[0] not in ("ORGANISATION", "LOCATION", "EQUIPMENT", "PERSON"):
                 # Target canonical not found in authoritative defense ontology -> fail closed
                 dec_id = str(pos_record.decision_id)
                 return {
@@ -668,6 +851,15 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
 
         for alias, (canonical, etype, desc) in self._alias_to_canonical.items():
             if entity_type_hint and etype != entity_type_hint:
+                continue
+
+            # Guard against merging opposing cardinal directions (e.g. Northern vs Southern vs Western)
+            norm_tokens = set(norm_name.split())
+            alias_tokens = set(alias.split())
+            cardinal_dirs = {"northern", "southern", "eastern", "western", "central"}
+            norm_cards = norm_tokens & cardinal_dirs
+            alias_cards = alias_tokens & cardinal_dirs
+            if norm_cards and alias_cards and norm_cards != alias_cards:
                 continue
 
             score = compute_string_similarity(norm_name, alias)

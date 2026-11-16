@@ -135,22 +135,13 @@ def evaluate_event_evidence(
         if re.search(r"\b" + re.escape(ind) + r"\b", cleaned_lower)
     ]
 
-    is_specific_event_type = event_type not in ("general", "unknown", "")
-
     # Gate logic:
-    # 1. No incident indicators and generic event classification -> reject
-    if not matched_indicators and not is_specific_event_type:
-        return False, "No incident indicators or specific event type detected; document is informational or administrative."
+    # A document must contain explicit incident indicators to establish an event thread.
+    # Mere mention of organizations/locations without incident context is informational or administrative.
+    if not matched_indicators:
+        return False, "No incident indicators detected; document is informational or administrative."
 
-    # 2. Corroborated incident indicators present
-    if matched_indicators:
-        return True, f"Detected incident indicators: [{', '.join(sorted(matched_indicators)[:3])}]"
-
-    # 3. Specific event type classified with at least one corroborating entity
-    if is_specific_event_type and len(extracted_entities) >= 1:
-        return True, f"Specific event type '{event_type}' with {len(extracted_entities)} corroborated entities."
-
-    return False, "Insufficient operational evidence to establish an event thread."
+    return True, f"Detected incident indicators: [{', '.join(sorted(matched_indicators)[:3])}]"
 
 
 def detect_document_language(text: str) -> Tuple[str, float, bool]:

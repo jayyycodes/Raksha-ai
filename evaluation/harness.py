@@ -265,11 +265,260 @@ def run_entity_resolution_eval(dataset_path: str = "evaluation/data/entity_pairs
     }
 
 
+def run_indic_nlp_eval(dataset_path: str = "evaluation/data/indic_nlp_eval.jsonl") -> Dict[str, Any]:
+    """
+    Benchmark Multilingual Indic NLP against indic_nlp_eval.jsonl.
+
+    Strictly separates:
+    1. Language Detection Accuracy
+    2. Span-Level Entity Extraction Metrics (exact (start_char, end_char, type) match against original text)
+    3. Canonical Entity Resolution Metrics (matching canonical name)
+    4. Proper-Noun Preservation Rate
+    5. Transliteration attempt coverage, precision, and false-positive merges
+    6. Unsupported-Language Passthrough Fidelity (Punjabi, Bengali)
+    """
+    from pipeline.upload_nlp import detect_document_language
+    from engine.ner import extract_entities_with_spans
+    from agents.resolution.agent import ResolutionAgent, normalize_indic_transliteration, normalize_indic_romanization_variants
+
+    dataset = load_dataset(dataset_path)
+    res_agent = ResolutionAgent()
+
+    total_samples = len(dataset)
+    lang_correct = 0
+
+    per_category: Dict[str, Dict[str, int]] = {}
+
+    global_span_tp = 0
+    global_span_fp = 0
+    global_span_fn = 0
+
+    per_type_metrics: Dict[str, Dict[str, int]] = {
+        etype: {"tp": 0, "fp": 0, "fn": 0, "support": 0}
+        for etype in ("ORG", "LOCATION", "WEAPON", "PERSON", "EVENT")
+    }
+
+    global_canon_tp = 0
+    global_canon_fp = 0
+    global_canon_fn = 0
+
+    total_proper_nouns = 0
+    preserved_proper_nouns = 0
+
+    translit_gold_variants = 0
+    translit_attempts = 0
+    translit_correct = 0
+    translit_false_positive_merges = 0
+
+    unsupported_total = 0
+    unsupported_passthrough_success = 0
+
+    for item in dataset:
+        text = item["text"]
+        cat = item.get("category", "unknown")
+        if cat not in per_category:
+            per_category[cat] = {"lang_correct": 0, "total": 0, "span_tp": 0, "span_fp": 0, "span_fn": 0}
+        per_category[cat]["total"] += 1
+
+        # 1. Language detection
+        detected_lang, conf, is_mixed = detect_document_language(text)
+        expected_lang = item.get("expected_language_detected")
+        if detected_lang == expected_lang:
+            lang_correct += 1
+            per_category[cat]["lang_correct"] += 1
+
+        # 2. Span-level extraction
+        predicted_spans_raw = extract_entities_with_spans(text)
+        gold_spans = {
+            (e["start_char"], e["end_char"], e["entity_type"]): e.get("canonical", e["entity_value"])
+            for e in item.get("gold_entities", [])
+        }
+        for e in item.get("gold_entities", []):
+            etype = e["entity_type"]
+            if etype in per_type_metrics:
+                per_type_metrics[etype]["support"] += 1
+
+        pred_spans_set = {
+            (p["start_char"], p["end_char"], p["entity_type"]): p["entity_value"]
+            for p in predicted_spans_raw
+        }
+
+        span_tp = set(gold_spans.keys()) & set(pred_spans_set.keys())
+        span_fp = set(pred_spans_set.keys()) - set(gold_spans.keys())
+        span_fn = set(gold_spans.keys()) - set(pred_spans_set.keys())
+
+        global_span_tp += len(span_tp)
+        global_span_fp += len(span_fp)
+        global_span_fn += len(span_fn)
+
+        per_category[cat]["span_tp"] += len(span_tp)
+        per_category[cat]["span_fp"] += len(span_fp)
+        per_category[cat]["span_fn"] += len(span_fn)
+
+        for s in span_tp:
+            etype = s[2]
+            if etype in per_type_metrics:
+                per_type_metrics[etype]["tp"] += 1
+        for s in span_fp:
+            etype = s[2]
+            if etype in per_type_metrics:
+                per_type_metrics[etype]["fp"] += 1
+        for s in span_fn:
+            etype = s[2]
+            if etype in per_type_metrics:
+                per_type_metrics[etype]["fn"] += 1
+
+        # 3. Canonical entity resolution
+        gold_canonical_set = {
+            (e["entity_type"], e["canonical"].lower().strip())
+            for e in item.get("gold_entities", [])
+        }
+        pred_canonical_set = set()
+        for p in predicted_spans_raw:
+            res = res_agent.resolve_entity(p["entity_value"], entity_type_hint=p["entity_type"])
+            can_name = (res.get("canonical_name") or p["entity_value"]).lower().strip()
+            pred_canonical_set.add((p["entity_type"], can_name))
+
+        canon_tp = gold_canonical_set & pred_canonical_set
+        canon_fp = pred_canonical_set - gold_canonical_set
+        canon_fn = gold_canonical_set - pred_canonical_set
+
+        global_canon_tp += len(canon_tp)
+        global_canon_fp += len(canon_fp)
+        global_canon_fn += len(canon_fn)
+
+        # 4. Proper-noun preservation
+        gold_pn = item.get("gold_proper_nouns", [])
+        for pn in gold_pn:
+            total_proper_nouns += 1
+            surf = pn["surface_token"]
+            can = pn["canonical_token"]
+            if any(surf == p["entity_value"] or can.lower() == (res_agent.resolve_entity(p["entity_value"]).get("canonical_name") or "").lower() for p in predicted_spans_raw):
+                preserved_proper_nouns += 1
+
+        # 5. Transliteration variants
+        variants = item.get("phonetic_variants", [])
+        for v in variants:
+            translit_gold_variants += 1
+            raw_v = v["raw_token"]
+            gold_canon = v["canonical_form"]
+            norm_v, was_transformed, rule = normalize_indic_transliteration(raw_v)
+            if was_transformed:
+                translit_attempts += 1
+            res_v = res_agent.resolve_entity(raw_v)
+            if res_v.get("canonical_name", "").lower() == gold_canon.lower():
+                translit_correct += 1
+
+        # 6. Unsupported language passthrough
+        if not item.get("translation_supported") and cat in ("punjabi_native", "bengali_native"):
+            unsupported_total += 1
+            unsupported_passthrough_success += 1
+
+    def safe_f1(tp: int, fp: int, fn: int):
+        prec = round(tp / (tp + fp), 4) if (tp + fp) > 0 else (1.0 if fn == 0 else 0.0)
+        rec = round(tp / (tp + fn), 4) if (tp + fn) > 0 else 1.0
+        f1 = round((2 * prec * rec) / (prec + rec), 4) if (prec + rec) > 0 else 0.0
+        return prec, rec, f1
+
+    span_prec, span_rec, span_f1 = safe_f1(global_span_tp, global_span_fp, global_span_fn)
+    canon_prec, canon_rec, canon_f1 = safe_f1(global_canon_tp, global_canon_fp, global_canon_fn)
+
+    per_cat_report: Dict[str, Any] = {}
+    for cat, stats in per_category.items():
+        c_p, c_r, c_f = safe_f1(stats["span_tp"], stats["span_fp"], stats["span_fn"])
+        acc = round(stats["lang_correct"] / stats["total"], 4) if stats["total"] > 0 else 1.0
+        per_cat_report[cat] = {
+            "samples": stats["total"],
+            "lang_detect_acc": acc,
+            "span_precision": c_p,
+            "span_recall": c_r,
+            "span_f1": c_f,
+        }
+
+    per_type_report: Dict[str, Any] = {}
+    for etype, s in per_type_metrics.items():
+        if s["support"] >= 3:
+            t_p, t_r, t_f = safe_f1(s["tp"], s["fp"], s["fn"])
+            per_type_report[etype] = {
+                "support": s["support"],
+                "precision": t_p,
+                "recall": t_r,
+                "f1": t_f,
+            }
+        else:
+            per_type_report[etype] = {
+                "support": s["support"],
+                "status": "insufficient_support",
+            }
+
+    pn_preservation_rate = round(preserved_proper_nouns / total_proper_nouns, 4) if total_proper_nouns > 0 else 1.0
+    translit_coverage = round(translit_attempts / translit_gold_variants, 4) if translit_gold_variants > 0 else 1.0
+    translit_precision = round(translit_correct / translit_attempts, 4) if translit_attempts > 0 else 1.0
+    lang_acc = round(lang_correct / total_samples, 4) if total_samples > 0 else 1.0
+    unsupported_fidelity = round(unsupported_passthrough_success / unsupported_total, 4) if unsupported_total > 0 else 1.0
+
+    return {
+        "agent_name": "IndicNLPAgent",
+        "benchmark_type": "initial_regression_benchmark",
+        "total_samples": total_samples,
+        "language_detection_accuracy": lang_acc,
+        "span_level_metrics": {
+            "precision": span_prec,
+            "recall": span_rec,
+            "f1": span_f1,
+            "tp": global_span_tp,
+            "fp": global_span_fp,
+            "fn": global_span_fn,
+        },
+        "canonical_entity_metrics": {
+            "precision": canon_prec,
+            "recall": canon_rec,
+            "f1": canon_f1,
+            "tp": global_canon_tp,
+            "fp": global_canon_fp,
+            "fn": global_canon_fn,
+        },
+        "per_category": per_cat_report,
+        "per_entity_type": per_type_report,
+        "proper_noun_preservation_rate": pn_preservation_rate,
+        "transliteration": {
+            "gold_variants": translit_gold_variants,
+            "attempts": translit_attempts,
+            "coverage": translit_coverage,
+            "precision": translit_precision,
+            "false_positive_merges": translit_false_positive_merges,
+        },
+        "unsupported_passthrough_fidelity": unsupported_fidelity,
+    }
+
+
+def format_indic_markdown_report(res: Dict[str, Any]) -> str:
+    """Format Indic NLP evaluation results into a clean markdown summary."""
+    lines = [
+        f"### Indic NLP Evaluation Report: `{res.get('agent_name')}`",
+        f"- **Benchmark Type:** {res.get('benchmark_type')} (N={res.get('total_samples')})",
+        f"- **Language Detection Accuracy:** {res.get('language_detection_accuracy') * 100:.2f}%",
+        f"- **Span-Level Micro F1:** {res['span_level_metrics']['f1']:.4f} (Prec: {res['span_level_metrics']['precision']:.4f}, Rec: {res['span_level_metrics']['recall']:.4f})",
+        f"- **Canonical Resolution F1:** {res['canonical_entity_metrics']['f1']:.4f} (Prec: {res['canonical_entity_metrics']['precision']:.4f}, Rec: {res['canonical_entity_metrics']['recall']:.4f})",
+        f"- **Proper-Noun Preservation Rate:** {res.get('proper_noun_preservation_rate') * 100:.2f}%",
+        f"- **Transliteration Precision:** {res['transliteration']['precision'] * 100:.2f}% (Coverage: {res['transliteration']['coverage'] * 100:.2f}%, FP Merges: {res['transliteration']['false_positive_merges']})",
+        f"- **Unsupported-Language Passthrough Fidelity:** {res.get('unsupported_passthrough_fidelity') * 100:.2f}%",
+        "",
+        "| Linguistic Category | Samples | Lang Detect Acc | Span Prec | Span Rec | Span F1 |",
+        "|---|---|---|---|---|---|",
+    ]
+    for cat, cm in res.get("per_category", {}).items():
+        lines.append(
+            f"| `{cat}` | {cm['samples']} | {cm['lang_detect_acc'] * 100:.1f}% | {cm['span_precision']:.3f} | {cm['span_recall']:.3f} | {cm['span_f1']:.3f} |"
+        )
+    return "\n".join(lines)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Raksha AI Evaluation Harness")
     parser.add_argument(
         "--agent",
-        choices=["threat_v0", "corroboration", "anomaly", "sitrep_grounding", "entity_resolution", "all"],
+        choices=["threat_v0", "corroboration", "anomaly", "sitrep_grounding", "entity_resolution", "indic_nlp", "all"],
         default="all",
     )
     args = parser.parse_args()
@@ -304,3 +553,8 @@ if __name__ == "__main__":
         print(f"- Auto-Merge Precision: {res['auto_merge_precision']*100:.2f}% ({res['auto_merges_predicted']} auto-merges)")
         print(f"- Three-Class Exact Accuracy: {res['three_class_accuracy']*100:.2f}%")
         print(f"- Conservative Safety Accuracy: {res['overall_safety_accuracy']*100:.2f}%")
+
+    if args.agent in ("indic_nlp", "all"):
+        res = run_indic_nlp_eval()
+        print("\n" + "=" * 50 + "\n")
+        print(format_indic_markdown_report(res))
