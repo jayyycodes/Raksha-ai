@@ -596,3 +596,100 @@ export async function exportCaseDossier(caseId: number): Promise<any | null> {
   }
 }
 
+// ── Stage 3 Solid: BYOD Safe Uploads & Corrections API ────────────────────────
+
+export async function fetchUploads(workspaceId?: number): Promise<import('./types').UploadListResponse | null> {
+  try {
+    const query = workspaceId ? `?workspace_id=${workspaceId}` : '';
+    const res = await apiFetch(`${getBaseUrl()}/api/uploads${query}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function uploadDataFile(file: File, workspaceId?: number): Promise<{ success: boolean; message?: string; upload?: import('./types').UploadItem }> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (workspaceId) formData.append('workspace_id', workspaceId.toString());
+
+    const res = await apiFetch(`${getBaseUrl()}/api/uploads`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, message: data.detail || 'Upload failed' };
+    }
+    return { success: true, message: data.message, upload: data.upload };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Network error during upload' };
+  }
+}
+
+export async function deleteUpload(uploadId: number): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/uploads/${uploadId}`, {
+      method: 'DELETE',
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function submitCorrectionRequest(payload: {
+  target_type: string;
+  target_id: string;
+  requester_email: string;
+  claim_details: string;
+  supporting_evidence?: string;
+  workspace_id?: number;
+}): Promise<{ success: boolean; message?: string; id?: number }> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/corrections`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, message: data.detail || 'Failed to submit correction request' };
+    }
+    return { success: true, message: data.message, id: data.id };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Network error' };
+  }
+}
+
+export async function fetchCorrections(params?: { status?: string; target_type?: string }): Promise<import('./types').CorrectionListResponse | null> {
+  try {
+    const query = new URLSearchParams();
+    if (params?.status && params.status !== 'all') query.set('status', params.status);
+    if (params?.target_type && params.target_type !== 'all') query.set('target_type', params.target_type);
+
+    const res = await apiFetch(`${getBaseUrl()}/api/corrections?${query.toString()}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function resolveCorrection(requestId: number, payload: { status: string; resolution_notes: string }): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${getBaseUrl()}/api/corrections/${requestId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+

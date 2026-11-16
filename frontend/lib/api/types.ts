@@ -418,3 +418,62 @@ export interface CaseDetailData {
   notes: CaseNoteItem[];
 }
 
+export interface UploadItem {
+  id: number;
+  filename: string;
+  file_hash: string;
+  mime_type: string;
+  file_size: number;
+  workspace_id: number;
+  uploader_id: number;
+  uploader_email: string;
+  source_type: string;
+  status: string;
+  parse_summary: {
+    format?: string;
+    row_count?: number;
+    ingested_count?: number;
+    columns?: string[];
+    sample?: any[];
+    page_count?: number;
+    total_characters?: number;
+    word_count?: number;
+    line_count?: number;
+    preview_snippet?: string;
+    status?: string;
+  };
+  created_at: string;
+}
+
+export interface UploadListResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  workspace_id: number;
+  items: UploadItem[];
+}
+
+export interface CorrectionRequestItem {
+  id: number;
+  target_type: 'entity' | 'article' | 'event' | 'threat_score';
+  target_id: string;
+  requester_email: string;
+  claim_details: string;
+  supporting_evidence?: string;
+  status: 'submitted' | 'in_review' | 'accepted' | 'rejected';
+  resolution_notes?: string;
+  resolved_by?: number;
+  resolver_email?: string;
+  workspace_id?: number;
+  created_at: string;
+  resolved_at?: string;
+}
+
+export interface CorrectionListResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  items: CorrectionRequestItem[];
+}
+
+
