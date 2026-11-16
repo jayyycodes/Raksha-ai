@@ -186,26 +186,56 @@ def run_sitrep_grounding_eval(dataset_path: str = "evaluation/data/sitrep_ground
     }
 
 
+def classify_entity_pair(res_a: Dict[str, Any], res_b: Dict[str, Any]) -> str:
+    """
+    Classify the relationship between two resolved entities into 'MATCH', 'REVIEW_NEEDED', or 'DISTINCT'.
+
+    Safety contract:
+    1. An automatic 'MATCH' (auto-merge) occurs ONLY if:
+       - Both entities independently return action == 'auto_link'
+       - Both resolve to non-empty canonical names that match case-insensitively
+    2. If either entity returns action == 'review_queue', or both share a canonical name
+       without both being auto-linked, human verification is required -> 'REVIEW_NEEDED'
+    3. Otherwise, entities are treated as 'DISTINCT' (kept separate).
+    """
+    can_a = (res_a.get("canonical_name") or "").strip()
+    can_b = (res_b.get("canonical_name") or "").strip()
+    same_canonical = bool(can_a and can_b and can_a.lower() == can_b.lower())
+
+    act_a = res_a.get("action")
+    act_b = res_b.get("action")
+    both_auto_link = (act_a == "auto_link" and act_b == "auto_link")
+    either_review = (act_a == "review_queue" or act_b == "review_queue")
+
+    if same_canonical and both_auto_link:
+        return "MATCH"
+    if either_review or (same_canonical and not both_auto_link):
+        return "REVIEW_NEEDED"
+    return "DISTINCT"
+
+
 def run_entity_resolution_eval(dataset_path: str = "evaluation/data/entity_pairs_eval.jsonl") -> Dict[str, Any]:
-    """Benchmark ResolutionAgent precision & recall against entity_pairs_eval.jsonl."""
+    """
+    Benchmark ResolutionAgent precision & recall against entity_pairs_eval.jsonl.
+
+    Distinguishes two accuracy metrics:
+    - three_class_accuracy: Strict multiclass classification accuracy (exact predicted == truth across MATCH, DISTINCT, REVIEW_NEEDED).
+    - overall_safety_accuracy: Conservative operational safety metric (proportion of pairs where no erroneous auto-merge occurred).
+    """
     from agents.resolution.agent import ResolutionAgent
 
     agent = ResolutionAgent()
     dataset = load_dataset(dataset_path)
 
-    correct = 0
+    exact_correct = 0
+    safety_correct = 0
     auto_merge_correct = 0
     auto_merge_total = 0
 
     for item in dataset:
         res_a = agent.resolve_entity(item["entity_a"])
         res_b = agent.resolve_entity(item["entity_b"])
-        same_canonical = res_a["canonical_name"].strip().lower() == res_b["canonical_name"].strip().lower()
-        both_strong = res_a["action"] == "auto_link" or res_b["action"] == "auto_link"
-
-        predicted = "MATCH" if (same_canonical and both_strong) else (
-            "REVIEW_NEEDED" if (res_a["action"] == "review_queue" or res_b["action"] == "review_queue") else "DISTINCT"
-        )
+        predicted = classify_entity_pair(res_a, res_b)
         truth = item["label"]
 
         if predicted == "MATCH":
@@ -213,17 +243,24 @@ def run_entity_resolution_eval(dataset_path: str = "evaluation/data/entity_pairs
             if truth == "MATCH":
                 auto_merge_correct += 1
 
-        # Conservative precision rule: REVIEW_NEEDED not auto-merged is safe
+        # Strict multiclass accuracy: exact label match
+        if predicted == truth:
+            exact_correct += 1
+
+        # Conservative precision rule: REVIEW_NEEDED not auto-merged is safe (avoids data corruption)
         if predicted == truth or (truth == "REVIEW_NEEDED" and predicted != "MATCH"):
-            correct += 1
+            safety_correct += 1
 
     precision = round(auto_merge_correct / auto_merge_total, 4) if auto_merge_total > 0 else 1.0
-    accuracy = round(correct / len(dataset), 4) if dataset else 1.0
+    three_class_acc = round(exact_correct / len(dataset), 4) if dataset else 1.0
+    safety_acc = round(safety_correct / len(dataset), 4) if dataset else 1.0
+
     return {
         "agent_name": "ResolutionAgent",
         "total_pairs": len(dataset),
         "auto_merge_precision": precision,
-        "overall_safety_accuracy": accuracy,
+        "three_class_accuracy": three_class_acc,
+        "overall_safety_accuracy": safety_acc,
         "auto_merges_predicted": auto_merge_total,
     }
 
@@ -265,4 +302,5 @@ if __name__ == "__main__":
         print(f"### Entity Resolution Precision Report:")
         print(f"- Total Evaluated Pairs: {res['total_pairs']}")
         print(f"- Auto-Merge Precision: {res['auto_merge_precision']*100:.2f}% ({res['auto_merges_predicted']} auto-merges)")
+        print(f"- Three-Class Exact Accuracy: {res['three_class_accuracy']*100:.2f}%")
         print(f"- Conservative Safety Accuracy: {res['overall_safety_accuracy']*100:.2f}%")
