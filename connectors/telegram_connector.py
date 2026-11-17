@@ -12,7 +12,10 @@ import time
 import urllib.request
 from datetime import datetime, timezone
 from typing import Any, Optional
-from bs4 import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None
 
 from connectors.base import BaseConnector
 from common.logger import get_logger
@@ -59,6 +62,10 @@ class TelegramChannelConnector(BaseConnector):
             )
             with urllib.request.urlopen(req, timeout=10) as response:
                 html = response.read().decode("utf-8", errors="replace")
+
+            if not BeautifulSoup:
+                logger.warning("BeautifulSoup not installed; Telegram connector returning empty list.")
+                return []
 
             soup = BeautifulSoup(html, "html.parser")
             message_nodes = soup.find_all("div", class_=re.compile(r"tgme_widget_message_wrap"))
