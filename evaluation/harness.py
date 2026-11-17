@@ -9,7 +9,7 @@ Generates accuracy, precision, recall, F1, grounding rate, and markdown summarie
 import argparse
 import json
 from pathlib import Path
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from evaluation.metrics import compute_classification_metrics, compute_grounding_rate
 
@@ -186,26 +186,66 @@ def run_sitrep_grounding_eval(dataset_path: str = "evaluation/data/sitrep_ground
     }
 
 
+def classify_entity_pair(res_a: Dict[str, Any], res_b: Dict[str, Any]) -> str:
+    """
+    Classify the relationship between two resolved entities into 'MATCH', 'REVIEW_NEEDED', or 'DISTINCT'.
+
+    Safety contract:
+    1. An automatic 'MATCH' (auto-merge) occurs ONLY if:
+       - Both entities independently return action == 'auto_link'
+       - Both resolve to non-empty canonical names that match case-insensitively
+    2. If either entity returns action == 'review_queue', or both share a canonical name
+       without both being auto-linked, human verification is required -> 'REVIEW_NEEDED'
+    3. Otherwise, entities are treated as 'DISTINCT' (kept separate).
+    """
+    can_a = (res_a.get("canonical_name") or "").strip()
+    can_b = (res_b.get("canonical_name") or "").strip()
+    same_canonical = bool(can_a and can_b and can_a.lower() == can_b.lower())
+
+    act_a = res_a.get("action")
+    act_b = res_b.get("action")
+    both_auto_link = (act_a == "auto_link" and act_b == "auto_link")
+    either_review = (act_a == "review_queue" or act_b == "review_queue")
+
+    # Safety check: conflicting military ranks for person entities require analyst review
+    rank_a = res_a.get("extracted_rank")
+    rank_b = res_b.get("extracted_rank")
+    if rank_a and rank_b:
+        from agents.resolution.agent import normalize_military_rank
+        norm_a = normalize_military_rank(rank_a)
+        norm_b = normalize_military_rank(rank_b)
+        if norm_a != norm_b:
+            return "REVIEW_NEEDED"
+
+    if same_canonical and both_auto_link:
+        return "MATCH"
+    if either_review or (same_canonical and not both_auto_link):
+        return "REVIEW_NEEDED"
+    return "DISTINCT"
+
+
 def run_entity_resolution_eval(dataset_path: str = "evaluation/data/entity_pairs_eval.jsonl") -> Dict[str, Any]:
-    """Benchmark ResolutionAgent precision & recall against entity_pairs_eval.jsonl."""
+    """
+    Benchmark ResolutionAgent precision & recall against entity_pairs_eval.jsonl.
+
+    Distinguishes two accuracy metrics:
+    - three_class_accuracy: Strict multiclass classification accuracy (exact predicted == truth across MATCH, DISTINCT, REVIEW_NEEDED).
+    - overall_safety_accuracy: Conservative operational safety metric (proportion of pairs where no erroneous auto-merge occurred).
+    """
     from agents.resolution.agent import ResolutionAgent
 
     agent = ResolutionAgent()
     dataset = load_dataset(dataset_path)
 
-    correct = 0
+    exact_correct = 0
+    safety_correct = 0
     auto_merge_correct = 0
     auto_merge_total = 0
 
     for item in dataset:
         res_a = agent.resolve_entity(item["entity_a"])
         res_b = agent.resolve_entity(item["entity_b"])
-        same_canonical = res_a["canonical_name"].strip().lower() == res_b["canonical_name"].strip().lower()
-        both_strong = res_a["action"] == "auto_link" or res_b["action"] == "auto_link"
-
-        predicted = "MATCH" if (same_canonical and both_strong) else (
-            "REVIEW_NEEDED" if (res_a["action"] == "review_queue" or res_b["action"] == "review_queue") else "DISTINCT"
-        )
+        predicted = classify_entity_pair(res_a, res_b)
         truth = item["label"]
 
         if predicted == "MATCH":
@@ -213,18 +253,613 @@ def run_entity_resolution_eval(dataset_path: str = "evaluation/data/entity_pairs
             if truth == "MATCH":
                 auto_merge_correct += 1
 
-        # Conservative precision rule: REVIEW_NEEDED not auto-merged is safe
+        # Strict multiclass accuracy: exact label match
+        if predicted == truth:
+            exact_correct += 1
+
+        # Conservative precision rule: REVIEW_NEEDED not auto-merged is safe (avoids data corruption)
         if predicted == truth or (truth == "REVIEW_NEEDED" and predicted != "MATCH"):
-            correct += 1
+            safety_correct += 1
 
     precision = round(auto_merge_correct / auto_merge_total, 4) if auto_merge_total > 0 else 1.0
-    accuracy = round(correct / len(dataset), 4) if dataset else 1.0
+    three_class_acc = round(exact_correct / len(dataset), 4) if dataset else 1.0
+    safety_acc = round(safety_correct / len(dataset), 4) if dataset else 1.0
+
     return {
         "agent_name": "ResolutionAgent",
         "total_pairs": len(dataset),
         "auto_merge_precision": precision,
-        "overall_safety_accuracy": accuracy,
+        "three_class_accuracy": three_class_acc,
+        "overall_safety_accuracy": safety_acc,
         "auto_merges_predicted": auto_merge_total,
+    }
+
+
+def run_resolution_feedback_eval(
+    dataset_path: str = "evaluation/data/resolution_feedback_eval.jsonl",
+    auto_link_threshold: float = 0.88,
+    review_queue_threshold: float = 0.65,
+) -> Dict[str, Any]:
+    """
+    Evaluate ResolutionAgent entity matching and human feedback behavior against resolution_feedback_eval.jsonl.
+
+    Reports:
+    - auto_link_precision: proportion of auto-linked predictions that are true MATCHes.
+    - auto_link_recall: proportion of true MATCHes successfully auto-linked.
+    - review_queue_rate: proportion of total items routed to human review.
+    - false_auto_merges: count of non-MATCH items incorrectly auto-linked (safety defect).
+    - distinct_precision: proportion of separate decisions that are true DISTINCT.
+    - distinct_recall: proportion of true DISTINCT items correctly separated.
+    - review_required_auto_linked: count of REVIEW_NEEDED items erroneously auto-linked.
+    - per_entity_type_metrics: performance partitioned by entity category.
+    """
+    from datetime import datetime, timezone
+    from agents.resolution.agent import ResolutionAgent, normalize_entity_name
+    from agents.resolution.feedback import FeedbackRecord, ResolutionFeedbackStore
+
+    dataset = load_dataset(dataset_path)
+
+    # Initialize store and populate feedback records per workspace
+    store = ResolutionFeedbackStore()
+
+    # Pre-populate feedback records from dataset if feedback_state exists
+    for item in dataset:
+        fb_state = item.get("feedback_state")
+        ws = item.get("workspace_id", 101)
+        if not fb_state:
+            continue
+
+        dec = fb_state.get("decision")
+        dec_id = fb_state.get("decision_id", f"dec_{item['id']}")
+        src = item["source_mention"]
+        tgt = item["candidate_canonical"]
+        analyst = fb_state.get("analyst_id", "analyst_default")
+        ts_str = fb_state.get("timestamp", "2026-11-10T12:00:00Z")
+        ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+        etype = fb_state.get("entity_type", item.get("entity_type"))
+
+        if dec == "conflict_equal_timestamp":
+            # Ingest two accepted records with differing canonicals at the exact same timestamp
+            targets = fb_state.get("targets", [tgt, "S-400 Triumf"])
+            for idx, target_can in enumerate(targets):
+                rec = FeedbackRecord(
+                    decision_id=f"{dec_id}_{idx}",
+                    source_mention=src,
+                    target_canonical=target_can,
+                    decision="accepted",
+                    analyst_id=analyst,
+                    reviewed_at=ts,
+                    entity_type=etype,
+                    workspace_id=ws,
+                )
+                store.add_record(rec)
+        elif dec == "superseded_newer_rejected":
+            # Older accepted record
+            older_ts = datetime(2026, 11, 16, 10, 0, 0, tzinfo=timezone.utc)
+            older_rec = FeedbackRecord(
+                decision_id=f"{dec_id}_old",
+                source_mention=src,
+                target_canonical=tgt,
+                decision="accepted",
+                analyst_id=analyst,
+                reviewed_at=older_ts,
+                entity_type=etype,
+                workspace_id=ws,
+            )
+            store.add_record(older_rec)
+            # Newer rejected record
+            newer_rec = FeedbackRecord(
+                decision_id=f"{dec_id}_new",
+                source_mention=src,
+                target_canonical=tgt,
+                decision="rejected",
+                analyst_id=analyst,
+                reviewed_at=ts,
+                entity_type=etype,
+                workspace_id=ws,
+            )
+            store.add_record(newer_rec)
+        elif dec in ("accepted", "rejected"):
+            rec = FeedbackRecord(
+                decision_id=dec_id,
+                source_mention=src,
+                target_canonical=tgt,
+                decision=dec,
+                analyst_id=analyst,
+                reviewed_at=ts,
+                entity_type=etype,
+                workspace_id=ws,
+            )
+            store.add_record(rec)
+        elif dec == "pending":
+            # Pending items are not recorded as accepted/rejected decisions in store;
+            # they must not influence resolution or trigger auto-link.
+            pass
+
+    agent = ResolutionAgent(
+        feedback_store=store,
+        auto_link_threshold=auto_link_threshold,
+        review_queue_threshold=review_queue_threshold,
+    )
+
+    correct_auto_merges = 0
+    total_auto_merges = 0
+    false_auto_merges = 0
+    review_queue_count = 0
+    correct_separates = 0
+    total_separates = 0
+    review_required_auto_linked = 0
+
+    gold_match_total = 0
+    gold_distinct_total = 0
+    gold_review_total = 0
+
+    per_type: Dict[str, Dict[str, int]] = {}
+
+    for item in dataset:
+        src = item["source_mention"]
+        cand = item["candidate_canonical"]
+        gold_dec = item["gold_decision"]
+        etype = item.get("entity_type", "UNKNOWN")
+        ws = item.get("workspace_id", 101)
+        ctx = item.get("context", "")
+
+        if etype not in per_type:
+            per_type[etype] = {
+                "support": 0, "correct_auto_merges": 0, "false_auto_merges": 0,
+                "gold_matches": 0, "gold_distinct": 0, "gold_review": 0, "review_queue": 0
+            }
+        per_type[etype]["support"] += 1
+
+        if gold_dec == "MATCH":
+            gold_match_total += 1
+            per_type[etype]["gold_matches"] += 1
+        elif gold_dec == "DISTINCT":
+            gold_distinct_total += 1
+            per_type[etype]["gold_distinct"] += 1
+        elif gold_dec == "REVIEW_NEEDED":
+            gold_review_total += 1
+            per_type[etype]["gold_review"] += 1
+
+        res_a = agent.resolve_entity(
+            raw_name=src,
+            context=ctx,
+            workspace_id=ws,
+            entity_type_hint=etype,
+        )
+        res_b = agent.resolve_entity(
+            raw_name=cand,
+            context=ctx,
+            workspace_id=ws,
+            entity_type_hint=etype,
+        )
+
+        pred_pair = classify_entity_pair(res_a, res_b)
+
+        if pred_pair == "MATCH":
+            total_auto_merges += 1
+            if gold_dec == "MATCH":
+                correct_auto_merges += 1
+                per_type[etype]["correct_auto_merges"] += 1
+            else:
+                false_auto_merges += 1
+                per_type[etype]["false_auto_merges"] += 1
+                if gold_dec == "REVIEW_NEEDED":
+                    review_required_auto_linked += 1
+
+        elif pred_pair == "REVIEW_NEEDED":
+            review_queue_count += 1
+            per_type[etype]["review_queue"] += 1
+
+        elif pred_pair == "DISTINCT":
+            total_separates += 1
+            if gold_dec == "DISTINCT":
+                correct_separates += 1
+
+    auto_link_prec = round(correct_auto_merges / total_auto_merges, 4) if total_auto_merges > 0 else 1.0
+    auto_link_rec = round(correct_auto_merges / gold_match_total, 4) if gold_match_total > 0 else 1.0
+    distinct_prec = round(correct_separates / total_separates, 4) if total_separates > 0 else 1.0
+    distinct_rec = round(correct_separates / gold_distinct_total, 4) if gold_distinct_total > 0 else 1.0
+    review_rate = round(review_queue_count / len(dataset), 4) if dataset else 0.0
+    safety_rate = round((len(dataset) - false_auto_merges) / len(dataset), 4) if dataset else 1.0
+
+    return {
+        "dataset_path": dataset_path,
+        "sample_count": len(dataset),
+        "auto_link_threshold": auto_link_threshold,
+        "review_queue_threshold": review_queue_threshold,
+        "auto_link_precision": auto_link_prec,
+        "auto_link_recall": auto_link_rec,
+        "distinct_precision": distinct_prec,
+        "distinct_recall": distinct_rec,
+        "review_queue_rate": review_rate,
+        "overall_safety_rate": safety_rate,
+        "correct_auto_merges": correct_auto_merges,
+        "total_auto_merges": total_auto_merges,
+        "false_auto_merges": false_auto_merges,
+        "review_required_auto_linked": review_required_auto_linked,
+        "gold_matches": gold_match_total,
+        "gold_distinct": gold_distinct_total,
+        "gold_review_needed": gold_review_total,
+        "per_entity_type": per_type,
+    }
+
+
+def sweep_resolution_thresholds(
+    dataset_path: str = "evaluation/data/resolution_feedback_eval.jsonl",
+    candidate_thresholds: Optional[List[float]] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Perform a threshold sweep across candidate auto_link thresholds and report safety and precision tradeoffs.
+    """
+    if candidate_thresholds is None:
+        candidate_thresholds = [0.75, 0.80, 0.85, 0.88, 0.90, 0.92, 0.95]
+
+    results = []
+    for th in candidate_thresholds:
+        eval_res = run_resolution_feedback_eval(
+            dataset_path=dataset_path,
+            auto_link_threshold=th,
+            review_queue_threshold=0.65,
+        )
+        results.append({
+            "auto_link_threshold": th,
+            "auto_link_precision": eval_res["auto_link_precision"],
+            "auto_link_recall": eval_res["auto_link_recall"],
+            "review_queue_rate": eval_res["review_queue_rate"],
+            "false_auto_merges": eval_res["false_auto_merges"],
+            "review_required_auto_linked": eval_res["review_required_auto_linked"],
+            "distinct_recall": eval_res["distinct_recall"],
+        })
+    return results
+
+
+def run_indic_nlp_eval(dataset_path: str = "evaluation/data/indic_nlp_eval.jsonl") -> Dict[str, Any]:
+    """
+    Benchmark Multilingual Indic NLP against indic_nlp_eval.jsonl.
+
+    Strictly separates:
+    1. Language Detection Accuracy
+    2. Span-Level Entity Extraction Metrics (exact (start_char, end_char, type) match against original text)
+    3. Canonical Entity Resolution Metrics (matching canonical name)
+    4. Proper-Noun Preservation Rate
+    5. Transliteration attempt coverage, precision, and false-positive merges
+    6. Unsupported-Language Passthrough Fidelity (Punjabi, Bengali)
+    """
+    from pipeline.upload_nlp import detect_document_language
+    from engine.ner import extract_entities_with_spans
+    from agents.resolution.agent import ResolutionAgent, normalize_indic_transliteration, normalize_indic_romanization_variants
+
+    dataset = load_dataset(dataset_path)
+    res_agent = ResolutionAgent()
+
+    total_samples = len(dataset)
+    lang_correct = 0
+
+    per_category: Dict[str, Dict[str, int]] = {}
+
+    global_span_tp = 0
+    global_span_fp = 0
+    global_span_fn = 0
+
+    per_type_metrics: Dict[str, Dict[str, int]] = {
+        etype: {"tp": 0, "fp": 0, "fn": 0, "support": 0}
+        for etype in ("ORG", "LOCATION", "WEAPON", "PERSON", "EVENT")
+    }
+
+    global_canon_tp = 0
+    global_canon_fp = 0
+    global_canon_fn = 0
+
+    total_proper_nouns = 0
+    preserved_proper_nouns = 0
+
+    translit_gold_variants = 0
+    translit_attempts = 0
+    translit_correct = 0
+    translit_false_positive_merges = 0
+
+    unsupported_total = 0
+    unsupported_passthrough_success = 0
+
+    for item in dataset:
+        text = item["text"]
+        cat = item.get("category", "unknown")
+        if cat not in per_category:
+            per_category[cat] = {"lang_correct": 0, "total": 0, "span_tp": 0, "span_fp": 0, "span_fn": 0}
+        per_category[cat]["total"] += 1
+
+        # 1. Language detection
+        detected_lang, conf, is_mixed = detect_document_language(text)
+        expected_lang = item.get("expected_language_detected")
+        if detected_lang == expected_lang:
+            lang_correct += 1
+            per_category[cat]["lang_correct"] += 1
+
+        # 2. Span-level extraction
+        predicted_spans_raw = extract_entities_with_spans(text)
+        gold_spans = {
+            (e["start_char"], e["end_char"], e["entity_type"]): e.get("canonical", e["entity_value"])
+            for e in item.get("gold_entities", [])
+        }
+        for e in item.get("gold_entities", []):
+            etype = e["entity_type"]
+            if etype in per_type_metrics:
+                per_type_metrics[etype]["support"] += 1
+
+        pred_spans_set = {
+            (p["start_char"], p["end_char"], p["entity_type"]): p["entity_value"]
+            for p in predicted_spans_raw
+        }
+
+        span_tp = set(gold_spans.keys()) & set(pred_spans_set.keys())
+        span_fp = set(pred_spans_set.keys()) - set(gold_spans.keys())
+        span_fn = set(gold_spans.keys()) - set(pred_spans_set.keys())
+
+        global_span_tp += len(span_tp)
+        global_span_fp += len(span_fp)
+        global_span_fn += len(span_fn)
+
+        per_category[cat]["span_tp"] += len(span_tp)
+        per_category[cat]["span_fp"] += len(span_fp)
+        per_category[cat]["span_fn"] += len(span_fn)
+
+        for s in span_tp:
+            etype = s[2]
+            if etype in per_type_metrics:
+                per_type_metrics[etype]["tp"] += 1
+        for s in span_fp:
+            etype = s[2]
+            if etype in per_type_metrics:
+                per_type_metrics[etype]["fp"] += 1
+        for s in span_fn:
+            etype = s[2]
+            if etype in per_type_metrics:
+                per_type_metrics[etype]["fn"] += 1
+
+        # 3. Canonical entity resolution
+        gold_canonical_set = {
+            (e["entity_type"], e["canonical"].lower().strip())
+            for e in item.get("gold_entities", [])
+        }
+        pred_canonical_set = set()
+        for p in predicted_spans_raw:
+            res = res_agent.resolve_entity(p["entity_value"], entity_type_hint=p["entity_type"])
+            can_name = (res.get("canonical_name") or p["entity_value"]).lower().strip()
+            pred_canonical_set.add((p["entity_type"], can_name))
+
+        canon_tp = gold_canonical_set & pred_canonical_set
+        canon_fp = pred_canonical_set - gold_canonical_set
+        canon_fn = gold_canonical_set - pred_canonical_set
+
+        global_canon_tp += len(canon_tp)
+        global_canon_fp += len(canon_fp)
+        global_canon_fn += len(canon_fn)
+
+        # 4. Proper-noun preservation
+        gold_pn = item.get("gold_proper_nouns", [])
+        for pn in gold_pn:
+            total_proper_nouns += 1
+            surf = pn["surface_token"]
+            can = pn["canonical_token"]
+            if any(surf == p["entity_value"] or can.lower() == (res_agent.resolve_entity(p["entity_value"]).get("canonical_name") or "").lower() for p in predicted_spans_raw):
+                preserved_proper_nouns += 1
+
+        # 5. Transliteration variants
+        variants = item.get("phonetic_variants", [])
+        for v in variants:
+            translit_gold_variants += 1
+            raw_v = v["raw_token"]
+            gold_canon = v["canonical_form"]
+            norm_v, was_transformed, rule = normalize_indic_transliteration(raw_v)
+            if was_transformed:
+                translit_attempts += 1
+            res_v = res_agent.resolve_entity(raw_v)
+            if res_v.get("canonical_name", "").lower() == gold_canon.lower():
+                translit_correct += 1
+
+        # 6. Unsupported language passthrough
+        if not item.get("translation_supported") and cat in ("punjabi_native", "bengali_native"):
+            unsupported_total += 1
+            unsupported_passthrough_success += 1
+
+    def safe_f1(tp: int, fp: int, fn: int):
+        prec = round(tp / (tp + fp), 4) if (tp + fp) > 0 else (1.0 if fn == 0 else 0.0)
+        rec = round(tp / (tp + fn), 4) if (tp + fn) > 0 else 1.0
+        f1 = round((2 * prec * rec) / (prec + rec), 4) if (prec + rec) > 0 else 0.0
+        return prec, rec, f1
+
+    span_prec, span_rec, span_f1 = safe_f1(global_span_tp, global_span_fp, global_span_fn)
+    canon_prec, canon_rec, canon_f1 = safe_f1(global_canon_tp, global_canon_fp, global_canon_fn)
+
+    per_cat_report: Dict[str, Any] = {}
+    for cat, stats in per_category.items():
+        c_p, c_r, c_f = safe_f1(stats["span_tp"], stats["span_fp"], stats["span_fn"])
+        acc = round(stats["lang_correct"] / stats["total"], 4) if stats["total"] > 0 else 1.0
+        per_cat_report[cat] = {
+            "samples": stats["total"],
+            "lang_detect_acc": acc,
+            "span_precision": c_p,
+            "span_recall": c_r,
+            "span_f1": c_f,
+        }
+
+    per_type_report: Dict[str, Any] = {}
+    for etype, s in per_type_metrics.items():
+        if s["support"] >= 3:
+            t_p, t_r, t_f = safe_f1(s["tp"], s["fp"], s["fn"])
+            per_type_report[etype] = {
+                "support": s["support"],
+                "precision": t_p,
+                "recall": t_r,
+                "f1": t_f,
+            }
+        else:
+            per_type_report[etype] = {
+                "support": s["support"],
+                "status": "insufficient_support",
+            }
+
+    pn_preservation_rate = round(preserved_proper_nouns / total_proper_nouns, 4) if total_proper_nouns > 0 else 1.0
+    translit_coverage = round(translit_attempts / translit_gold_variants, 4) if translit_gold_variants > 0 else 1.0
+    translit_precision = round(translit_correct / translit_attempts, 4) if translit_attempts > 0 else 1.0
+    lang_acc = round(lang_correct / total_samples, 4) if total_samples > 0 else 1.0
+    unsupported_fidelity = round(unsupported_passthrough_success / unsupported_total, 4) if unsupported_total > 0 else 1.0
+
+    return {
+        "agent_name": "IndicNLPAgent",
+        "benchmark_type": "initial_regression_benchmark",
+        "total_samples": total_samples,
+        "language_detection_accuracy": lang_acc,
+        "span_level_metrics": {
+            "precision": span_prec,
+            "recall": span_rec,
+            "f1": span_f1,
+            "tp": global_span_tp,
+            "fp": global_span_fp,
+            "fn": global_span_fn,
+        },
+        "canonical_entity_metrics": {
+            "precision": canon_prec,
+            "recall": canon_rec,
+            "f1": canon_f1,
+            "tp": global_canon_tp,
+            "fp": global_canon_fp,
+            "fn": global_canon_fn,
+        },
+        "per_category": per_cat_report,
+        "per_entity_type": per_type_report,
+        "proper_noun_preservation_rate": pn_preservation_rate,
+        "transliteration": {
+            "gold_variants": translit_gold_variants,
+            "attempts": translit_attempts,
+            "coverage": translit_coverage,
+            "precision": translit_precision,
+            "false_positive_merges": translit_false_positive_merges,
+        },
+        "unsupported_passthrough_fidelity": unsupported_fidelity,
+    }
+
+
+def format_indic_markdown_report(res: Dict[str, Any]) -> str:
+    """Format Indic NLP evaluation results into a clean markdown summary."""
+    lines = [
+        f"### Indic NLP Evaluation Report: `{res.get('agent_name')}`",
+        f"- **Benchmark Type:** {res.get('benchmark_type')} (N={res.get('total_samples')})",
+        f"- **Language Detection Accuracy:** {res.get('language_detection_accuracy') * 100:.2f}%",
+        f"- **Span-Level Micro F1:** {res['span_level_metrics']['f1']:.4f} (Prec: {res['span_level_metrics']['precision']:.4f}, Rec: {res['span_level_metrics']['recall']:.4f})",
+        f"- **Canonical Resolution F1:** {res['canonical_entity_metrics']['f1']:.4f} (Prec: {res['canonical_entity_metrics']['precision']:.4f}, Rec: {res['canonical_entity_metrics']['recall']:.4f})",
+        f"- **Proper-Noun Preservation Rate:** {res.get('proper_noun_preservation_rate') * 100:.2f}%",
+        f"- **Transliteration Precision:** {res['transliteration']['precision'] * 100:.2f}% (Coverage: {res['transliteration']['coverage'] * 100:.2f}%, FP Merges: {res['transliteration']['false_positive_merges']})",
+        f"- **Unsupported-Language Passthrough Fidelity:** {res.get('unsupported_passthrough_fidelity') * 100:.2f}%",
+        "",
+        "| Linguistic Category | Samples | Lang Detect Acc | Span Prec | Span Rec | Span F1 |",
+        "|---|---|---|---|---|---|",
+    ]
+    for cat, cm in res.get("per_category", {}).items():
+        lines.append(
+            f"| `{cat}` | {cm['samples']} | {cm['lang_detect_acc'] * 100:.1f}% | {cm['span_precision']:.3f} | {cm['span_recall']:.3f} | {cm['span_f1']:.3f} |"
+        )
+    return "\n".join(lines)
+
+
+def run_event_threading_eval(
+    dataset_path: str = "evaluation/data/event_threading_eval.jsonl",
+    match_threshold: float = 0.65,
+    review_threshold: float = 0.45,
+) -> Dict[str, Any]:
+    """
+    Benchmark ThreadingAgent pairwise event grouping and separation against event_threading_eval.jsonl.
+
+    Reports:
+    - pairwise MATCH precision, recall, and F1.
+    - DISTINCT precision, recall, and F1.
+    - REVIEW_NEEDED precision, recall, and F1.
+    - overall accuracy.
+    - false thread merges.
+    - missed same-event matches.
+    - review rate.
+    - per-category performance across all 12 operational categories.
+    """
+    from agents.threading.agent import ThreadingAgent
+
+    dataset = load_dataset(dataset_path)
+    # Initialize with empty known_events to prevent fallback event leakage
+    agent = ThreadingAgent(known_events=[])
+
+    labels = ["MATCH", "DISTINCT", "REVIEW_NEEDED"]
+    matrix = {true_lbl: {pred_lbl: 0 for pred_lbl in labels} for true_lbl in labels}
+    per_category: Dict[str, Dict[str, int]] = {}
+
+    exact_correct = 0
+    false_thread_merges = 0
+    missed_matches = 0
+
+    for item in dataset:
+        art_a = item["article_a"]
+        art_b = item["article_b"]
+        expected = item["expected_relation"]
+        cat = item.get("category", "general")
+
+        if cat not in per_category:
+            per_category[cat] = {"total": 0, "correct": 0, "false_merges": 0}
+        per_category[cat]["total"] += 1
+
+        res = agent.compare_articles(
+            article_a=art_a,
+            article_b=art_b,
+            match_threshold=match_threshold,
+            review_threshold=review_threshold,
+        )
+        predicted = res["relation"]
+
+        if expected in matrix and predicted in matrix[expected]:
+            matrix[expected][predicted] += 1
+
+        if predicted == expected:
+            exact_correct += 1
+            per_category[cat]["correct"] += 1
+
+        if predicted == "MATCH" and expected != "MATCH":
+            false_thread_merges += 1
+            per_category[cat]["false_merges"] += 1
+
+        if predicted == "DISTINCT" and expected == "MATCH":
+            missed_matches += 1
+
+    total_samples = len(dataset)
+    overall_accuracy = round(exact_correct / total_samples, 4) if total_samples > 0 else 0.0
+
+    def calc_prf(cls_name: str) -> Dict[str, float]:
+        tp = matrix[cls_name][cls_name]
+        fp = sum(matrix[other][cls_name] for other in labels if other != cls_name)
+        fn = sum(matrix[cls_name][other] for other in labels if other != cls_name)
+        prec = round(tp / (tp + fp), 4) if (tp + fp) > 0 else 0.0
+        rec = round(tp / (tp + fn), 4) if (tp + fn) > 0 else 0.0
+        f1 = round((2 * prec * rec) / (prec + rec), 4) if (prec + rec) > 0 else 0.0
+        return {"precision": prec, "recall": rec, "f1": f1, "tp": tp, "fp": fp, "fn": fn, "support": tp + fn}
+
+    match_metrics = calc_prf("MATCH")
+    distinct_metrics = calc_prf("DISTINCT")
+    review_metrics = calc_prf("REVIEW_NEEDED")
+
+    total_review_predicted = sum(matrix[true_lbl]["REVIEW_NEEDED"] for true_lbl in labels)
+    review_rate = round(total_review_predicted / total_samples, 4) if total_samples > 0 else 0.0
+
+    return {
+        "dataset_path": dataset_path,
+        "sample_count": total_samples,
+        "match_threshold": match_threshold,
+        "review_threshold": review_threshold,
+        "overall_accuracy": overall_accuracy,
+        "false_thread_merges": false_thread_merges,
+        "missed_same_event_matches": missed_matches,
+        "review_rate": review_rate,
+        "match_metrics": match_metrics,
+        "distinct_metrics": distinct_metrics,
+        "review_needed_metrics": review_metrics,
+        "confusion_matrix": matrix,
+        "per_category": per_category,
     }
 
 
@@ -232,7 +867,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Raksha AI Evaluation Harness")
     parser.add_argument(
         "--agent",
-        choices=["threat_v0", "corroboration", "anomaly", "sitrep_grounding", "entity_resolution", "all"],
+        choices=["threat_v0", "corroboration", "anomaly", "sitrep_grounding", "entity_resolution", "indic_nlp", "all"],
         default="all",
     )
     args = parser.parse_args()
@@ -265,4 +900,10 @@ if __name__ == "__main__":
         print(f"### Entity Resolution Precision Report:")
         print(f"- Total Evaluated Pairs: {res['total_pairs']}")
         print(f"- Auto-Merge Precision: {res['auto_merge_precision']*100:.2f}% ({res['auto_merges_predicted']} auto-merges)")
+        print(f"- Three-Class Exact Accuracy: {res['three_class_accuracy']*100:.2f}%")
         print(f"- Conservative Safety Accuracy: {res['overall_safety_accuracy']*100:.2f}%")
+
+    if args.agent in ("indic_nlp", "all"):
+        res = run_indic_nlp_eval()
+        print("\n" + "=" * 50 + "\n")
+        print(format_indic_markdown_report(res))

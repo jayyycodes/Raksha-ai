@@ -13,7 +13,7 @@ from agents.base import BaseAgent
 from common.logger import get_logger
 from common.schemas.articles import ArticleIn
 from common.schemas.provenance import ClaimStatus, Provenance, SourceType
-from engine.translator import translate
+from engine.translator import protect_indic_proper_nouns, restore_indic_proper_nouns, translate
 
 logger = get_logger(__name__)
 
@@ -73,6 +73,16 @@ class TranslationAgent(BaseAgent[Union[ArticleIn, Dict[str, Any]], Dict[str, Any
         is_translated = False
         method = "helsinki_opus_mt"
         confidence = 0.90
+        all_preserved_proper_nouns: List[Dict[str, Any]] = []
+
+        if language in ("hi", "ur"):
+            _, content_preserved = protect_indic_proper_nouns(content)
+            _, title_preserved = protect_indic_proper_nouns(title)
+            seen_surfaces = set()
+            for rec in content_preserved + title_preserved:
+                if rec["surface_token"] not in seen_surfaces:
+                    seen_surfaces.add(rec["surface_token"])
+                    all_preserved_proper_nouns.append(rec)
 
         try:
             # Translate content if present, otherwise title
@@ -100,6 +110,11 @@ class TranslationAgent(BaseAgent[Union[ArticleIn, Dict[str, Any]], Dict[str, Any
                 else:
                     translated_title = title
 
+            # Restore and enforce proper-noun canonical forms
+            if all_preserved_proper_nouns:
+                translated_text = restore_indic_proper_nouns(translated_text, all_preserved_proper_nouns)
+                translated_title = restore_indic_proper_nouns(translated_title, all_preserved_proper_nouns)
+
         except Exception as exc:
             logger.error("Unexpected error in TranslationAgent for article %s: %s", article_id, exc)
             is_translated = False
@@ -123,5 +138,6 @@ class TranslationAgent(BaseAgent[Union[ArticleIn, Dict[str, Any]], Dict[str, Any
             "is_translated": is_translated,
             "translated_title": translated_title,
             "translated_text": translated_text,
+            "preserved_proper_nouns": all_preserved_proper_nouns,
             "provenance": prov,
         }

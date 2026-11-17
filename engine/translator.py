@@ -68,6 +68,75 @@ SENTENCE_SPLIT_PATTERN: re.Pattern = re.compile(
 _MODEL_CACHE: dict[str, tuple[Any, Any]] = {}
 _CACHE_LOCK = threading.Lock()
 
+# Strategic defense proper nouns (Indic scripts -> Canonical English representation)
+INDIC_DEFENSE_PROPER_NOUNS: dict[str, str] = {
+    # Hindi (Devanagari)
+    "सुखोई-30MKI": "Sukhoi-30MKI",
+    "सुखोई-30": "Sukhoi-30",
+    "अग्नि-5": "Agni-5",
+    "अग्नि-V": "Agni-V",
+    "ब्रह्मोस": "BrahMos",
+    "आईएनएस विक्रांत": "INS Vikrant",
+    "तेजस": "Tejas",
+    "सियाचिन ग्लेशियर": "Siachen Glacier",
+    "सियाचिन": "Siachen",
+    "गलवान घाटी": "Galwan Valley",
+    "गलवान": "Galwan",
+    "लद्दाख": "Ladakh",
+    "डीआरडीओ": "DRDO",
+    "वास्तविक नियंत्रण रेखा": "Line of Actual Control",
+    "राजनाथ सिंह": "Rajnath Singh",
+    "उपेंद्र द्विवेदी": "Upendra Dwivedi",
+    # Urdu (Perso-Arabic)
+    "راولپنڈی": "Rawalpindi",
+    "لائن آف کنٹرول": "Line of Control",
+    "کنٹرول لائن": "Line of Control",
+    "جے ایف-17": "JF-17",
+    "عاصم منیر": "Asim Munir",
+    "پونچھ": "Poonch",
+    "جیش محمد": "Jaish-e-Mohammed",
+    "آئی ایس آئی": "Inter-Services Intelligence",
+    "سیاچین": "Siachen",
+    "اسلام آباد": "Islamabad",
+    "بحیرہ عرب": "Arabian Sea",
+}
+
+
+def protect_indic_proper_nouns(text: str) -> tuple[str, list[dict[str, str]]]:
+    """
+    Identifies known proper nouns in Indic text and records preservation metadata.
+    Returns: (text, preserved_records)
+    """
+    if not text:
+        return "", []
+    preserved: list[dict[str, str]] = []
+    # Sort keys by length descending to match longest phrases first
+    sorted_nouns = sorted(INDIC_DEFENSE_PROPER_NOUNS.items(), key=lambda x: len(x[0]), reverse=True)
+    for surface, canonical in sorted_nouns:
+        if surface in text:
+            preserved.append({
+                "surface_token": surface,
+                "canonical_token": canonical,
+                "must_not_translate_literally": True,
+            })
+    return text, preserved
+
+
+def restore_indic_proper_nouns(english_text: str, preserved_records: list[dict[str, str]]) -> str:
+    """
+    Ensures that recognized proper nouns appear with standard canonical representations in English text.
+    """
+    if not english_text or not preserved_records:
+        return english_text
+    restored = english_text
+    for rec in preserved_records:
+        canonical = rec["canonical_token"]
+        surface = rec["surface_token"]
+        # If the untranslated native surface token is still present, replace it with canonical
+        if surface in restored:
+            restored = restored.replace(surface, canonical)
+    return restored
+
 
 # =====================================================================
 # Exception Hierarchy

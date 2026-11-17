@@ -2,6 +2,7 @@
 Unit tests for Stage 2 ResolutionAgent.
 Floor 2 — Language & Knowledge Agents
 """
+from datetime import datetime, timezone
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -11,8 +12,13 @@ from agents.resolution.agent import (
     compute_cosine_similarity,
     normalize_indic_romanization_variants,
 )
+from agents.resolution.feedback import (
+    FeedbackDecision,
+    FeedbackRecord,
+    ResolutionFeedbackStore,
+)
 from common.schemas.articles import EntityOut
-from common.schemas.provenance import Provenance
+from common.schemas.provenance import ClaimStatus, Provenance
 from engine.embeddings import EMBEDDING_DIM
 
 
@@ -210,6 +216,87 @@ class TestResolutionAgent(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             self.agent.run("not a list")
+
+    def test_feedback_store_dependency_injection(self):
+        """Verify custom ResolutionFeedbackStore injection in constructor and setter."""
+        custom_store = ResolutionFeedbackStore()
+        rec = FeedbackRecord(
+            source_mention="Custom Wing 44",
+            target_canonical="Indian Air Force",
+            decision=FeedbackDecision.ACCEPTED,
+            decision_id="inj-1",
+            reviewed_at=datetime.now(timezone.utc),
+            workspace_id=200,
+        )
+        custom_store.add_record(rec)
+
+        injected_agent = ResolutionAgent(feedback_store=custom_store)
+        res = injected_agent.resolve_entity("Custom Wing 44", workspace_id=200)
+        self.assertEqual(res["action"], "auto_link")
+        self.assertEqual(res["canonical_name"], "Indian Air Force")
+        self.assertEqual(res["match_method"], "accepted_feedback_alias")
+
+        # Invalidate with replacement store
+        empty_store = ResolutionFeedbackStore()
+        injected_agent.set_feedback_store(empty_store)
+        res_after = injected_agent.resolve_entity("Custom Wing 44", workspace_id=200)
+        self.assertEqual(res_after["action"], "separate")
+
+    def test_batch_run_with_feedback_provenance_and_workspace(self):
+        """Verify batch run inherits feedback decisions and sets ANALYST_VERIFIED provenance."""
+        now = datetime.now(timezone.utc)
+        self.agent.add_feedback_records([
+            FeedbackRecord(
+                source_mention="Agni Strike Unit",
+                target_canonical="Defence Research and Development Organisation",
+                decision=FeedbackDecision.ACCEPTED,
+                decision_id="batch-fb-1",
+                reviewed_at=now,
+                workspace_id=300,
+            ),
+            FeedbackRecord(
+                source_mention="IAF",
+                target_canonical="Indian Air Force",
+                decision=FeedbackDecision.REJECTED,
+                decision_id="batch-fb-2",
+                reviewed_at=now,
+                workspace_id=300,
+            ),
+        ])
+
+        batch_input = [
+            {"name": "Agni Strike Unit", "workspace_id": 300},
+            {"name": "IAF", "workspace_id": 300},
+            {"name": "DRDO", "workspace_id": 300},
+        ]
+        out = self.agent.run(batch_input, workspace_id=300)
+        entities = out["resolved_entities"]
+        self.assertEqual(len(entities), 3)
+
+        # 1: Agni Strike Unit -> DRDO via feedback
+        self.assertEqual(entities[0]["action"], "auto_link")
+        self.assertEqual(entities[0]["canonical_name"], "Defence Research and Development Organisation")
+        self.assertEqual(entities[0]["match_method"], "accepted_feedback_alias")
+
+        # 2: IAF -> rejected in workspace 300
+        self.assertEqual(entities[1]["action"], "separate")
+        self.assertEqual(entities[1]["match_method"], "negative_feedback_constraint")
+
+        # 3: DRDO -> baseline exact match
+        self.assertEqual(entities[2]["action"], "auto_link")
+        self.assertEqual(entities[2]["canonical_name"], "Defence Research and Development Organisation")
+
+        # Individual items retain exact claim_status
+        self.assertEqual(entities[0]["claim_status"], ClaimStatus.ANALYST_VERIFIED.value)
+        self.assertEqual(entities[1]["claim_status"], ClaimStatus.DISPUTED.value)
+        self.assertEqual(entities[2]["claim_status"], ClaimStatus.OFFICIAL_DESIGNATION.value)
+
+        # Batch provenance is conservative: mixed batch remains OFFICIAL_DESIGNATION
+        self.assertEqual(out["provenance"].claim_status, ClaimStatus.OFFICIAL_DESIGNATION)
+
+        # 100% positively accepted feedback batch elevates to ANALYST_VERIFIED
+        out_pure = self.agent.run([{"name": "Agni Strike Unit"}], workspace_id=300)
+        self.assertEqual(out_pure["provenance"].claim_status, ClaimStatus.ANALYST_VERIFIED)
 
 
 if __name__ == "__main__":

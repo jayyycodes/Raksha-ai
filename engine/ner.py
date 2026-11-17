@@ -108,30 +108,97 @@ DEFENSE_PATTERNS: list[tuple[re.Pattern, str, float]] = [
     (re.compile(r"\b(?:Kathmandu|Dhaka|Colombo|Hambantota|Kabul|Naypyidaw|Male|Thimphu)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Strait of Malacca|Bab-el-Mandeb|Strait of Hormuz|Diego Garcia|South China Sea)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
 
+    # Romanized Indic & Phonetic Variants (Strategic Locations)
+    (re.compile(r"\b(?:Kupwada)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Syachen)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Ravalpindi)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Akhnur)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Samba)\b", re.IGNORECASE), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+
     # Key Strategic Organisations
     (re.compile(r"\b(?:Indian Army|IA)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Indian Air Force|IAF)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Indian Navy|IN)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Western Air Command)\b", re.IGNORECASE), "ORG", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Defence Research and Development Organisation|Defense Research and Development Organisation|DRDO)\b", re.IGNORECASE), "ORG", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Border Security Force|BSF)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Indo-Tibetan Border Police|ITBP)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:People's Liberation Army|PLA|PLAAF|PLAN)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Western Theater Command|WTC)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Central Military Commission|CMC)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
-    (re.compile(r"\b(?:Pakistan Army|Pakistan Air Force|PAF|Pakistan Navy)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Pakistan Army|Pak Army|Pakistan Air Force|PAF|Pakistan Navy)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Rawalpindi GHQ|GHQ)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Inter-Services Intelligence|ISI)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
-    (re.compile(r"\b(?:Jaish-e-Mohammed|JeM)\b", re.IGNORECASE), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Jaish-e-Mohammed|Jaish-e-Mohammad|JeM)\b", re.IGNORECASE), "ORG", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Lashkar-e-Taiba|LeT)\b", re.IGNORECASE), "ORG", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:ISRO|HAL|BEL|Mazagon Dock)\b"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
 
     # Key Named Strategic Persons / Leaders
-    (re.compile(r"\b(?:General Upendra Dwivedi|Upendra Dwivedi|COAS)\b"), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:General Upendra Dwivedi|Lt Gen Upendra Dwivedi|Upendra Dwivedi|COAS)\b"), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:General Anil Chauhan|Anil Chauhan|CDS)\b"), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Rajnath Singh|S\.?\s*Jaishankar|Narendra Modi)\b", re.IGNORECASE), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Rahul Gandhi)\b", re.IGNORECASE), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
-    (re.compile(r"\b(?:Xi Jinping|Dong Jun|Asim Munir|Shehbaz Sharif)\b", re.IGNORECASE), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Xi Jinping|Dong Jun|General Asim Munir|Asim Munir|Shehbaz Sharif)\b", re.IGNORECASE), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
     (re.compile(r"\b(?:Muhammad Yunus|K\.?P\.?\s*Sharma Oli)\b", re.IGNORECASE), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"\b(?:Subedar Major Balbir Singh|Balbir Singh)\b", re.IGNORECASE), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
+
+    # Multilingual Indic — Devanagari (Hindi)
+    (re.compile(r"भारतीय वायु सेना"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"भारतीय सेना"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"भारतीय नौसेना"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"डीआरडीओ"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"लद्दाख"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"सियाचिन ग्लेशियर|सियाचिन"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"गलवान घाटी"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"वास्तविक नियंत्रण रेखा"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"नई दिल्ली"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"राजस्थान"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"ओडिशा"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"आईएनएस विक्रांत"), "WEAPON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"तेजस"), "WEAPON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"सुखोई-30MKI"), "WEAPON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"अग्नि-5"), "WEAPON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"ब्रह्मोस"), "WEAPON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"राजनाथ सिंह"), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"उपेंद्र द्विवेदी"), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
+
+    # Multilingual Indic — Perso-Arabic (Urdu)
+    (re.compile(r"پاک فوج"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"پاکستان ائیر فورس"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"پاکستان نیوی"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"آئی ایس آئی"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"جیش محمد"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"راولپنڈی"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"اسلام آباد"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"لائن آف کنٹرول|کنٹرول لائن"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"پونچھ"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"سیاچین"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"بحیرہ عرب"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"جے ایف-17"), "WEAPON", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"عاصم منیر"), "PERSON", DEFAULT_PATTERN_CONFIDENCE),
+
+    # Multilingual Indic — Gurmukhi (Punjabi)
+    (re.compile(r"ਸੀਮਾ ਸੁਰੱਖਿਆ ਬਲ"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"ਬੀਐਸਐਫ"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"ਭਾਰਤੀ ਫੌਜ"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"ਅੰਮ੍ਰਿਤਸਰ"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"ਫਿਰੋਜ਼ਪੁਰ"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"ਜੰਮੂ ਅਤੇ ਕਸ਼ਮੀਰ"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"ਗੁਰਦਾਸਪੁਰ"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"ਪਠਾਨਕੋਟ"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+
+    # Multilingual Indic — Eastern Nagari (Bengali)
+    (re.compile(r"ভারতীয় নৌসেনা"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"ভারতীয় সেনা"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"ডিআরডিও"), "ORG", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"বঙ্গোপসাগরে|বঙ্গোপসাগর"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"শিলিগুড়ি"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"কলকাতায়|কলকাতা"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"পূর্ব লাদাখ"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"ভারত"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"চীন"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"হাসিমারা"), "LOCATION", DEFAULT_PATTERN_CONFIDENCE),
+    (re.compile(r"রাফাল"), "WEAPON", DEFAULT_PATTERN_CONFIDENCE),
 
     # Key Weapons & Strategic Platforms
     (re.compile(r"\b(?:BrahMos|Brahmos)\b", re.IGNORECASE), "WEAPON", DEFAULT_PATTERN_CONFIDENCE),
@@ -357,4 +424,150 @@ def extract_entities(text: str, model_name: str = DEFAULT_MODEL) -> list[dict]:
             "confidence": confidence,
         })
 
+    return entities
+
+
+# =====================================================================
+# Structured Person Mentions & Span-Level Extraction
+# =====================================================================
+MILITARY_RANKS_PATTERN = re.compile(
+    r"^(?:(?:General|Gen|Lt Gen|Lt\. Gen|Lieutenant General|Maj Gen|Maj\. Gen|Major General|"
+    r"Brigadier|Brig|Colonel|Col|Lieutenant Colonel|Lt Col|Major|Maj|Captain|Capt|Lieutenant|Lt|"
+    r"Subedar Major|Subedar|Naib Subedar|Havildar|Naik|Lance Naik|"
+    r"Air Chief Marshal|Air Marshal|Air Commodore|Group Captain|Wing Commander|Squadron Leader|"
+    r"Admiral|Vice Admiral|Rear Admiral|Commodore|"
+    r"Defence Minister|Prime Minister|PM|جنرل|सेना प्रमुख|रक्षा मंत्री)\.?\s+)+",
+    re.IGNORECASE,
+)
+
+
+def parse_structured_person_mention(raw_mention: str) -> dict:
+    """
+    Parse a person mention into structured attributes:
+    - raw_mention: original string
+    - extracted_rank: identified rank or title (if present)
+    - normalized_name: name after stripping rank and normalizing whitespace
+    - entity_type: 'PERSON'
+    - is_ambiguous: True if the normalized name has only a single word or is a common ambiguous surname
+    - evidence: diagnostic reasoning
+    """
+    if not raw_mention or not isinstance(raw_mention, str):
+        return {
+            "raw_mention": raw_mention or "",
+            "extracted_rank": None,
+            "normalized_name": "",
+            "entity_type": "PERSON",
+            "is_ambiguous": True,
+            "evidence": "Empty or non-string mention",
+        }
+
+    trimmed = raw_mention.strip()
+    match = MILITARY_RANKS_PATTERN.match(trimmed)
+    extracted_rank = None
+    if match:
+        extracted_rank = match.group(0).strip()
+        name_part = trimmed[match.end():].strip()
+    else:
+        name_part = trimmed
+
+    # Normalize name part
+    clean_name = re.sub(r"[^\w\s\u0900-\u097F\u0600-\u06FF\u0A00-\u0A7F\u0980-\u09FF\-]", "", name_part)
+    clean_name = re.sub(r"\s+", " ", clean_name).strip()
+    tokens = clean_name.split()
+
+    is_ambiguous = False
+    evidence = "Unique person mention with full name."
+
+    if not tokens:
+        is_ambiguous = True
+        evidence = "Rank only; no person name identified."
+    elif len(tokens) == 1:
+        is_ambiguous = True
+        evidence = f"Single-token name '{tokens[0]}'; insufficient specificity for automated person merging."
+
+    return {
+        "raw_mention": trimmed,
+        "extracted_rank": extracted_rank,
+        "normalized_name": clean_name or trimmed,
+        "entity_type": "PERSON",
+        "is_ambiguous": is_ambiguous,
+        "evidence": evidence,
+    }
+
+
+def extract_entities_with_spans(text: str, model_name: str = DEFAULT_MODEL) -> list[dict]:
+    """
+    Extract named entities from article text with exact Python character offsets.
+
+    Returns:
+        List of dicts: [
+            {
+                "entity_type": str,
+                "entity_value": str,
+                "confidence": float,
+                "start_char": int,
+                "end_char": int,
+            }
+        ]
+        Guarantees: text[start_char:end_char] == entity_value for every entry.
+    """
+    if text is None or not isinstance(text, str):
+        raise ValueError("Input text must be a string")
+
+    if not text.strip():
+        return []
+
+    entities: list[dict] = []
+    seen_spans: set[tuple[int, int]] = set()
+
+    # 1. Search defense patterns across the text
+    for pattern, entity_type, confidence in DEFENSE_PATTERNS:
+        for match in pattern.finditer(text):
+            span = match.span()
+            matched_value = match.group(0)
+            if span not in seen_spans:
+                seen_spans.add(span)
+                entities.append({
+                    "entity_type": entity_type,
+                    "entity_value": matched_value,
+                    "confidence": confidence,
+                    "start_char": span[0],
+                    "end_char": span[1],
+                })
+
+    # 2. Search spaCy for Latin / English text
+    try:
+        nlp = _get_or_load_model(model_name.strip())
+        doc = nlp(text)
+        for ent in doc.ents:
+            ent_value = ent.text.strip()
+            if not ent_value:
+                continue
+
+            if ent.label_ == "PRODUCT":
+                if _is_weapon_product(ent_value):
+                    mapped_type = "WEAPON"
+                else:
+                    continue
+            else:
+                mapped_type = SPACY_TO_ENTITY_TYPE.get(ent.label_)
+                if mapped_type is None:
+                    continue
+
+            start = ent.start_char
+            end = ent.end_char
+            span = (start, end)
+            if span not in seen_spans and text[start:end] == ent_value:
+                seen_spans.add(span)
+                entities.append({
+                    "entity_type": mapped_type,
+                    "entity_value": ent_value,
+                    "confidence": DEFAULT_SPACY_CONFIDENCE,
+                    "start_char": start,
+                    "end_char": end,
+                })
+    except Exception as exc:
+        logger.debug("spaCy span extraction fallback: %s", exc)
+
+    entities.sort(key=lambda x: x["start_char"])
     return entities
