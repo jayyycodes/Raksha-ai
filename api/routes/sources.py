@@ -55,14 +55,23 @@ def sources_health(db=Depends(get_db)):
                    COUNT(a.id) AS total_articles,
                    COUNT(a.id) AS article_count,
                    COUNT(a.id) FILTER (WHERE a.scraped_at >= NOW() - INTERVAL '24 hours' OR a.published_at >= NOW() - INTERVAL '24 hours') AS articles_today,
-                   COALESCE(sh.status, CASE WHEN s.is_active THEN 'ok' ELSE 'failed' END) AS status,
+                   CASE
+                       WHEN NOT s.is_active THEN 'failed'
+                       WHEN sh.last_error IS NOT NULL OR COALESCE(sh.retries, 0) >= 3 OR sh.status = 'failed' THEN 'failed'
+                       WHEN COUNT(a.id) = 0 THEN 'empty'
+                       WHEN COUNT(a.id) > 0 AND (
+                           COUNT(a.id) FILTER (WHERE a.scraped_at >= NOW() - INTERVAL '24 hours' OR a.published_at >= NOW() - INTERVAL '24 hours') > 0
+                           OR COALESCE(sh.last_success, MAX(a.scraped_at), s.last_scraped_at) >= NOW() - INTERVAL '48 hours'
+                       ) THEN 'ok'
+                       ELSE 'stale'
+                   END AS status,
                    sh.last_error,
                    COALESCE(sh.retries, 0) AS retries
             FROM sources s
             LEFT JOIN source_health sh ON sh.source_id = s.id
             LEFT JOIN articles a ON a.source_id = s.id
-            GROUP BY s.id, s.name, s.ring, s.language, s.country, s.url, s.rss_url,
-                     sh.last_fetched, sh.last_success, sh.status, sh.last_error, sh.retries
+            GROUP BY s.id, s.name, s.ring, s.language, s.country, s.url, s.rss_url, s.is_active,
+                     sh.last_fetched, sh.last_success, sh.status, sh.last_error, sh.retries, s.last_scraped_at
             ORDER BY s.ring ASC, s.name ASC
         """)
     ).fetchall()
@@ -73,14 +82,14 @@ def sources_health(db=Depends(get_db)):
 def trigger_sources_refresh(background_tasks: BackgroundTasks):
     """
     On-demand live intelligence refresh:
-    Triggers an immediate scrape cycle across all 40 monitored sources,
+    Triggers an immediate scrape cycle across all monitored sources,
     deduplicates and processes new articles through the NLP pipeline.
     """
     from scraper.scheduler import run_scrape_cycle
     background_tasks.add_task(run_scrape_cycle)
     return {
         "status": "triggered",
-        "message": "Live scrape cycle initiated across all 40 monitored sources.",
+        "message": "Live scrape cycle initiated across all monitored intelligence sources.",
     }
 
 

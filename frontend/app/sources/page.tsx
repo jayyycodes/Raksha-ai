@@ -11,6 +11,7 @@ async function SourceContent() {
   const okCount = sources.filter((s) => s.status === 'ok').length;
   const staleCount = sources.filter((s) => s.status === 'stale').length;
   const failedCount = sources.filter((s) => s.status === 'failed').length;
+  const emptyCount = sources.filter((s) => s.status === 'empty').length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -23,29 +24,29 @@ async function SourceContent() {
           <StatCard
             label="Monitored Outlets"
             value={total}
-            subtext="Ring 1 to 4 coverage"
+            subtext="Ring 1 to 4 coverage (96 feeds)"
             icon={<span>📡</span>}
           />
           <StatCard
-            label="Operational Feeds"
+            label="Active & Ingesting"
             value={okCount}
-            subtext={`${Math.round((okCount / Math.max(1, total)) * 100)}% uptime`}
+            subtext={`${Math.round((okCount / Math.max(1, total)) * 100)}% live streaming feeds`}
             icon={<span>🟢</span>}
             accentColor="#2F7D4F"
           />
           <StatCard
             label="Stale Feeds"
             value={staleCount}
-            subtext="no updates > 4 hours"
+            subtext="no updates in > 24 hours"
             icon={<span>🟡</span>}
             accentColor="#B7791F"
           />
           <StatCard
-            label="Failing / Retrying"
-            value={failedCount}
-            subtext="requires proxy rotation"
-            icon={<span>🔴</span>}
-            accentColor="#B42318"
+            label="Empty / Pending"
+            value={emptyCount + failedCount}
+            subtext={`${emptyCount} uncollected · ${failedCount} failing`}
+            icon={<span>⚪</span>}
+            accentColor="#2B5FAE"
           />
         </div>
       </section>
