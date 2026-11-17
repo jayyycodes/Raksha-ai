@@ -13,6 +13,13 @@ import re
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from agents.base import BaseAgent
+from agents.resolution.feedback import (
+    FeedbackDecision,
+    FeedbackRecord,
+    ResolutionFeedbackStore,
+    normalize_entity_name,
+    normalize_workspace_id,
+)
 from common.logger import get_logger
 from common.schemas.articles import EntityOut
 from common.schemas.provenance import ClaimStatus, Provenance, SourceType
@@ -24,6 +31,7 @@ logger = get_logger(__name__)
 PREFIX_PATTERN = re.compile(
     r"^(?:(?:General|Gen|Lt Gen|Lt\. Gen|Lieutenant General|Maj Gen|Maj\. Gen|Major General|"
     r"Brigadier|Brig|Col|Colonel|Maj|Major|Captain|Capt|Lieutenant|Lt|"
+    r"Subedar Major|Subedar|Naib Subedar|Havildar|Naik|Lance Naik|"
     r"Air Chief Marshal|Air Marshal|Air Commodore|Group Captain|Wing Commander|Squadron Leader|"
     r"Admiral|Vice Admiral|Rear Admiral|Commodore|"
     r"President|Prime Minister|PM|Defence Minister|Minister|Shri|Smt|Mr|Mrs|Ms|Dr)\.?\s+)+",
@@ -54,22 +62,22 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
     # Organizations — India
     "Indian Army": (
         "ORGANISATION",
-        ["ia", "indian army", "army of india", "bharatiya thalsena", "thalsena"],
+        ["ia", "indian army", "army of india", "bharatiya thalsena", "thalsena", "भारतीय सेना", "ਭਾਰਤੀ ਫੌਜ", "ভারতীয় সেনা"],
         "Indian land warfare ground forces defence infantry armoured military troops Northern Command",
     ),
     "Indian Air Force": (
         "ORGANISATION",
-        ["iaf", "indian air force", "air force of india", "bharatiya vayu sena", "vayu sena"],
+        ["iaf", "indian air force", "air force of india", "bharatiya vayu sena", "vayu sena", "भारतीय वायु सेना"],
         "Indian air warfare aerial defence fighter jets transport squadron aircraft combat pilots",
     ),
     "Indian Navy": (
         "ORGANISATION",
-        ["in", "indian navy", "navy of india", "bharatiya nausena", "nausena"],
+        ["in", "indian navy", "navy of india", "bharatiya nausena", "nausena", "भारतीय नौसेना", "ভারতীয় নৌসেনা"],
         "Indian maritime naval defence aircraft carriers warships submarines fleet Western Naval Command",
     ),
     "Defence Research and Development Organisation": (
         "ORGANISATION",
-        ["drdo", "defence research and development organisation", "defense research and development organisation", "defence research & development organisation"],
+        ["drdo", "defence research and development organisation", "defense research and development organisation", "defence research & development organisation", "डीआरडीओ", "ডিআরডিও"],
         "Defence research military technology weapons missiles laboratory DRDO indigenous systems testing",
     ),
     "Indian Space Research Organisation": (
@@ -105,28 +113,43 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
     ),
     "Pakistan Army": (
         "ORGANISATION",
-        ["pak army", "pakistan army"],
+        ["pak army", "pakistan army", "پاک فوج"],
         "Pakistani ground forces military Rawalpindi General Headquarters border corps",
     ),
     "Pakistan Air Force": (
         "ORGANISATION",
-        ["paf", "pakistan air force"],
+        ["paf", "pakistan air force", "پاکستان ائیر فورس"],
         "Pakistani aerial military fighter jets combat pilots airbases interception",
     ),
     "Pakistan Navy": (
         "ORGANISATION",
-        ["pn", "pakistan navy"],
+        ["pn", "pakistan navy", "پاکستان نیوی"],
         "Pakistani maritime naval fleet Arabian Sea coastal defence Karachi naval base",
     ),
     "Inter-Services Intelligence": (
         "ORGANISATION",
-        ["isi", "inter-services intelligence", "inter services intelligence"],
+        ["isi", "inter-services intelligence", "inter services intelligence", "آئی ایس آئی"],
         "Pakistani military intelligence agency espionage covert security operations Islamabad",
     ),
     "Jaish-e-Mohammed": (
         "ORGANISATION",
-        ["jem", "jaish-e-mohammed", "jaish-e-mohammad", "jaish-i-mohammed", "jaish e mohammed", "jaish-i-muhammad"],
+        ["jem", "jaish-e-mohammed", "jaish-e-mohammad", "jaish-i-mohammed", "jaish e mohammed", "jaish-i-muhammad", "جیش محمد"],
         "Designated terrorist militant organization Kashmir insurgency cross-border attacks suicide bombings",
+    ),
+    "Border Security Force": (
+        "ORGANISATION",
+        ["bsf", "border security force", "सीमा सुरक्षा बल", "ਸੀਮਾ ਸੁਰੱਖਿਆ ਬਲ", "ਬੀਐਸਐਫ"],
+        "Indian primary border guarding paramilitary police force Ministry of Home Affairs western and eastern frontiers",
+    ),
+    "Western Air Command": (
+        "ORGANISATION",
+        ["wac", "western air command", "iaf western air command"],
+        "Operational command Indian Air Force responsible for air defense along northern and western borders Subroto Park New Delhi",
+    ),
+    "Eastern Air Command": (
+        "ORGANISATION",
+        ["eac", "eastern air command", "iaf eastern air command"],
+        "Operational command Indian Air Force responsible for air defense along northeastern borders Shillong Meghalaya",
     ),
     "Lashkar-e-Taiba": (
         "ORGANISATION",
@@ -136,23 +159,103 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
     # Strategic Locations
     "Line of Actual Control": (
         "LOCATION",
-        ["lac", "line of actual control", "sino-indian lac", "lac border"],
+        ["lac", "line of actual control", "sino-indian lac", "lac border", "वास्तविक नियंत्रण रेखा"],
         "Sino-Indian border demarcation line Eastern Ladakh Arunachal Pradesh military standoff patrol points",
     ),
     "Line of Control": (
         "LOCATION",
-        ["loc", "line of control", "indo-pak loc", "loc border", "ceasefire line"],
+        ["loc", "line of control", "indo-pak loc", "loc border", "ceasefire line", "لائن آف کنٹرول", "کنٹرول لائن"],
         "Indo-Pak military boundary Jammu and Kashmir Poonch Rajouri ceasefire cross-border firing",
     ),
     "Siachen Glacier": (
         "LOCATION",
-        ["siachen", "siachen glacier", "saltoro ridge"],
+        ["siachen", "siachen glacier", "saltoro ridge", "syachen", "siyachen", "सियाचिन ग्लेशियर", "सियाचिन", "سیاچین"],
         "High-altitude military outpost Karakoram Range Saltoro ridge glacier northern Ladakh extreme cold",
     ),
     "Galwan Valley": (
         "LOCATION",
-        ["galwan", "galwan valley", "patrolling point 14", "pp14"],
+        ["galwan", "galwan valley", "patrolling point 14", "pp14", "गलवान घाटी"],
         "Eastern Ladakh river valley June 2020 military clash patrolling point 14 disengagement",
+    ),
+    "Eastern Ladakh": (
+        "LOCATION",
+        ["eastern ladakh", "east ladakh", "पूर्व लादाख"],
+        "Strategic high-altitude frontier region Sino-Indian Line of Actual Control deployment",
+    ),
+    "Kupwara": (
+        "LOCATION",
+        ["kupwara", "kupwada"],
+        "Frontier district Line of Control North Kashmir border security counter infiltration",
+    ),
+    "Akhnoor": (
+        "LOCATION",
+        ["akhnoor", "akhnur"],
+        "Border town sector Line of Control Jammu district international border forward defence",
+    ),
+    "Poonch": (
+        "LOCATION",
+        ["poonch", "punch sector", "پونچھ"],
+        "Border district Line of Control Jammu division cross-border shelling ceasefire monitoring",
+    ),
+    "Samba": (
+        "LOCATION",
+        ["samba", "samba sector"],
+        "Border district international border Jammu division cross-border tunnels drone detection",
+    ),
+    "Amritsar": (
+        "LOCATION",
+        ["amritsar", "ਅੰਮ੍ਰਿਤਸਰ"],
+        "Punjab frontier district international border BSF anti-drone interdiction",
+    ),
+    "Ferozepur": (
+        "LOCATION",
+        ["ferozepur", "ferozepore", "ਫਿਰੋਜ਼ਪੁਰ"],
+        "Punjab frontier district international border Hussainiwala sector BSF riverine border",
+    ),
+    "Gurdaspur": (
+        "LOCATION",
+        ["gurdaspur", "ਗੁਰਦਾਸਪੁਰ"],
+        "Punjab frontier district international border counter infiltration security",
+    ),
+    "Pathankot": (
+        "LOCATION",
+        ["pathankot", "pathankot airbase", "ਪਠਾਨਕੋਟ"],
+        "Strategic military station air force base Punjab Jammu border transit hub",
+    ),
+    "Siliguri": (
+        "LOCATION",
+        ["siliguri", "siliguri corridor", "শিলিগুড়ি"],
+        "Strategic narrow corridor connecting Northeast India West Bengal defense trijunction",
+    ),
+    "Hasimara": (
+        "LOCATION",
+        ["hasimara", "hasimara airbase", "হাসিমারা"],
+        "Strategic Air Force Station Eastern Air Command Rafale fighter squadron north Bengal",
+    ),
+    "Kolkata": (
+        "LOCATION",
+        ["kolkata", "calcutta", "কলকাতায়", "কলকাতা"],
+        "Capital West Bengal Eastern Command headquarters Fort William defense research naval shipyard",
+    ),
+    "Bay of Bengal": (
+        "LOCATION",
+        ["bay of bengal", "bengal bay", "বঙ্গোপসাগরে", "বঙ্গোপসাগর"],
+        "Strategic maritime body Indian Ocean eastern seaboard naval exercises",
+    ),
+    "Arabian Sea": (
+        "LOCATION",
+        ["arabian sea", "بحیرہ عرب"],
+        "Strategic maritime basin Indian Ocean western seaboard naval patrols",
+    ),
+    "Rajasthan": (
+        "LOCATION",
+        ["rajasthan", "pokhran", "राजस्थान"],
+        "Western border state military strike ranges desert exercises Pokhran firing test",
+    ),
+    "Odisha": (
+        "LOCATION",
+        ["odisha", "orissa", "chandipur", "ओडिशा"],
+        "Eastern coastal state missile testing range ITR Chandipur integrated test range",
     ),
     "Pangong Tso": (
         "LOCATION",
@@ -171,18 +274,33 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
     ),
     "Rawalpindi": (
         "LOCATION",
-        ["rawalpindi", "ravalpindi", "pindi"],
+        ["rawalpindi", "ravalpindi", "pindi", "راولپنڈی"],
         "Pakistani garrison city military General Headquarters Punjab Pakistan near Islamabad",
     ),
     "Islamabad": (
         "LOCATION",
-        ["islamabad", "islamabad capital"],
+        ["islamabad", "islamabad capital", "اسلام آباد"],
         "Capital city Pakistan federal administration diplomatic foreign ministry",
     ),
     "New Delhi": (
         "LOCATION",
-        ["delhi", "new delhi", "national capital region"],
+        ["delhi", "new delhi", "national capital region", "नई दिल्ली"],
         "Capital city India South Block North Block Ministry of Defence national leadership",
+    ),
+    "Ladakh": (
+        "LOCATION",
+        ["ladakh", "लद्दाख"],
+        "High-altitude strategic union territory Northern India Line of Actual Control",
+    ),
+    "India": (
+        "LOCATION",
+        ["india", "bharat", "ভারত"],
+        "Sovereign South Asian democratic nation New Delhi armed forces",
+    ),
+    "China": (
+        "LOCATION",
+        ["china", "peoples republic of china", "prc", "চীন"],
+        "East Asian nation Beijing Central Military Commission PLA",
     ),
     "Beijing": (
         "LOCATION",
@@ -192,22 +310,22 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
     # Equipment & Weapons
     "BrahMos": (
         "EQUIPMENT",
-        ["brahmos", "brahmos missile", "brahmos supersonic cruise missile", "brahmos aerospace"],
+        ["brahmos", "brahmos missile", "brahmos supersonic cruise missile", "brahmos aerospace", "ब्रह्मोस"],
         "Supersonic cruise missile joint venture DRDO NPO Mashinostroyeniya precision strike weapon",
     ),
     "Dassault Rafale": (
         "EQUIPMENT",
-        ["rafale", "dassault rafale", "rafale fighter", "rafale jets"],
+        ["rafale", "dassault rafale", "rafale fighter", "rafale jets", "রাফাল"],
         "French multirole twin-engine fighter aircraft Indian Air Force Meteor missiles Ambala Hasimara",
     ),
     "HAL Tejas": (
         "EQUIPMENT",
-        ["tejas", "hal tejas", "lca tejas", "light combat aircraft tejas"],
+        ["tejas", "hal tejas", "lca tejas", "light combat aircraft tejas", "तेजस"],
         "Indigenous single-engine light combat aircraft Hindustan Aeronautics Limited Indian Air Force",
     ),
     "Sukhoi Su-30MKI": (
         "EQUIPMENT",
-        ["su-30mki", "su-30", "su30", "sukhoi-30", "sukhoi su-30"],
+        ["su-30mki", "su-30", "su30", "sukhoi-30", "sukhoi su-30", "सुखोई-30mki", "सुखोई-30"],
         "Twin-engine air superiority multirole combat fighter jet license built HAL Indian Air Force",
     ),
     "S-400 Triumf": (
@@ -217,7 +335,7 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
     ),
     "Agni-V": (
         "EQUIPMENT",
-        ["agni-v", "agni 5", "agni-5", "agni v"],
+        ["agni-v", "agni 5", "agni-5", "agni v", "अग्नि-5"],
         "Canisterised intercontinental ballistic missile nuclear capable strategic strike MIRV DRDO",
     ),
     "Agni-P": (
@@ -227,7 +345,7 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
     ),
     "INS Vikrant": (
         "EQUIPMENT",
-        ["ins vikrant", "vikrant", "iac-1"],
+        ["ins vikrant", "vikrant", "iac-1", "आईएनएस विक्रांत"],
         "Indigenous aircraft carrier Indian Navy Cochin Shipyard MiG-29K aviation strike carrier",
     ),
     "INS Vikramaditya": (
@@ -237,7 +355,7 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
     ),
     "JF-17 Thunder": (
         "EQUIPMENT",
-        ["jf-17", "jf17", "jf-17 thunder", "fc-1 xiaolong"],
+        ["jf-17", "jf17", "jf-17 thunder", "fc-1 xiaolong", "جے ایف-17"],
         "Single-engine multirole combat aircraft Pakistan Air Force Chengdu PAC Kamra",
     ),
     "Chengdu J-20": (
@@ -245,7 +363,76 @@ CANONICAL_DEFENSE_ENTITIES: Dict[str, Tuple[str, List[str], str]] = {
         ["j-20", "j20", "chengdu j-20", "mighty dragon"],
         "Fifth-generation stealth air superiority twin-jet fighter aircraft People's Liberation Army Air Force",
     ),
+    # Key Strategic Persons
+    "Upendra Dwivedi": (
+        "PERSON",
+        ["upendra dwivedi", "gen upendra dwivedi", "general upendra dwivedi", "lt gen upendra dwivedi", "उपेंद्र द्विवेदी"],
+        "Chief of the Army Staff Indian Army former Northern Army Commander senior military leader",
+    ),
+    "Rajnath Singh": (
+        "PERSON",
+        ["rajnath singh", "defence minister rajnath singh", "rajnath", "राजनाथ सिंह"],
+        "Union Minister of Defence Government of India South Block apex defense policymaker",
+    ),
+    "Asim Munir": (
+        "PERSON",
+        ["asim munir", "general asim munir", "gen asim munir", "syed asim munir", "عاصم منیر"],
+        "Chief of Army Staff Pakistan Army General Headquarters Rawalpindi",
+    ),
 }
+
+
+def normalize_indic_transliteration(text: str) -> Tuple[str, bool, str]:
+    """
+    Normalizes specific composite name connectors and vetted orthographic variants
+    found in South Asian defense English transliterations (e.g. Urdu/Hindi romanizations):
+      - Connectors: '-e-', '-i-', '-ul-', '-al-' standardized to consistent tokens.
+      - Suffixes: 'muhammad' / 'mohammad' -> 'mohammed'.
+      - Geographic phonetic variants:
+          'ravalpindi' -> 'rawalpindi'
+          'kupwada' -> 'kupwara'
+          'akhnur' -> 'akhnoor'
+          'syachen' / 'siyachen' -> 'siachen'
+    NOTE: Does NOT perform destructive blind folds (such as arbitrary w->v or oo->u)
+    to prevent corrupting legitimate English words (such as 'west' -> 'vest' or 'punch' -> 'poonch').
+    Returns: (normalized_text, was_transformed, rule_applied)
+    """
+    if not text:
+        return "", False, "empty_input"
+    t = text.lower().strip()
+    if t in COMMON_ENGLISH_WORDS or t in COMMON_AMBIGUOUS_NAMES:
+        return t, False, "common_word_guard"
+
+    orig = t
+    rule = "none"
+
+    if re.search(r"[\-\_\s]+(?:e|i|ul|al)[\-\_\s]+", t):
+        t = re.sub(r"[\-\_\s]+(?:e|i|ul|al)[\-\_\s]+", " ", t)
+        rule = "connector_normalization"
+    if re.search(r"\bhizb(?:ul)?\b", t):
+        t = re.sub(r"\bhizb(?:ul)?\b", "hizb", t)
+        rule = "organization_alias"
+    if re.search(r"m[ou]hamm?[ae]d", t):
+        t = re.sub(r"m[ou]hamm?[ae]d", "mohammed", t)
+        rule = "name_suffix_mohammed"
+    if re.search(r"\bravalpindi\b", t):
+        t = re.sub(r"\bravalpindi\b", "rawalpindi", t)
+        rule = "phonetic_ravalpindi"
+    if re.search(r"\bkupwada\b", t):
+        t = re.sub(r"\bkupwada\b", "kupwara", t)
+        rule = "phonetic_kupwada"
+    if re.search(r"\bakhnur\b", t):
+        t = re.sub(r"\bakhnur\b", "akhnoor", t)
+        rule = "phonetic_akhnur"
+    if re.search(r"\bs[iy]+achen\b", t):
+        t = re.sub(r"\bs[iy]+achen\b", "siachen", t)
+        rule = "phonetic_siachen"
+
+    t = re.sub(r"[^\w\s]", "", t)
+    t = re.sub(r"\s+", " ", t).strip()
+
+    was_transformed = (t != orig)
+    return t, was_transformed, rule
 
 
 def normalize_indic_romanization_variants(text: str) -> str:
@@ -258,18 +445,49 @@ def normalize_indic_romanization_variants(text: str) -> str:
     NOTE: Does NOT perform destructive blind folds (such as arbitrary w->v or oo->u)
     to prevent corrupting legitimate English words (such as 'west' -> 'vest' or 'punch' -> 'poonch').
     """
-    if not text:
-        return ""
-    t = text.lower().strip()
-    if t in COMMON_ENGLISH_WORDS or t in COMMON_AMBIGUOUS_NAMES:
-        return t
-    # Normalize connectors in composite names (Jaish-e-Mohammed, Hizb-ul-Mujahideen)
-    t = re.sub(r"[\-\_\s]+(?:e|i|ul|al)[\-\_\s]+", " ", t)
-    t = re.sub(r"\bhizb(?:ul)?\b", "hizb", t)
-    t = re.sub(r"m[ou]hamm?[ae]d", "mohammed", t)
-    t = re.sub(r"\bravalpindi\b", "rawalpindi", t)
-    t = re.sub(r"[^\w\s]", "", t)
-    return re.sub(r"\s+", " ", t).strip()
+    norm, _, _ = normalize_indic_transliteration(text)
+    return norm
+
+
+def normalize_military_rank(rank: Optional[str]) -> Optional[str]:
+    """Normalize military rank variants (e.g. 'Gen' / 'General' -> 'general', 'Lt Gen' / 'Lt. Gen' -> 'lieutenant_general')."""
+    if not rank or not isinstance(rank, str):
+        return None
+    r = rank.lower().strip().replace(".", "")
+    r = re.sub(r"\s+", " ", r)
+    if r in ("general", "gen", "جنرل", "सेना प्रमुख"):
+        return "general"
+    if r in ("lt gen", "lieutenant general"):
+        return "lieutenant_general"
+    if r in ("maj gen", "major general"):
+        return "major_general"
+    if r in ("brigadier", "brig"):
+        return "brigadier"
+    if r in ("colonel", "col"):
+        return "colonel"
+    if r in ("lt col", "lieutenant colonel"):
+        return "lieutenant_colonel"
+    if r in ("major", "maj"):
+        return "major"
+    if r in ("captain", "capt"):
+        return "captain"
+    if r in ("lieutenant", "lt"):
+        return "lieutenant"
+    if r in ("subedar major", "subedar-major"):
+        return "subedar_major"
+    if r in ("subedar",):
+        return "subedar"
+    if r in ("air chief marshal", "acm"):
+        return "air_chief_marshal"
+    if r in ("air marshal",):
+        return "air_marshal"
+    if r in ("admiral",):
+        return "admiral"
+    if r in ("vice admiral",):
+        return "vice_admiral"
+    if r in ("defence minister", "defense minister", "रक्षा मंत्री"):
+        return "defence_minister"
+    return r
 
 
 def normalize_entity_name(name: str) -> str:
@@ -328,25 +546,70 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
     name: str = "resolution_agent"
     version: str = "0.2.0"
 
-    def __init__(self):
+    def __init__(
+        self,
+        feedback_store: Optional[ResolutionFeedbackStore] = None,
+        auto_link_threshold: float = 0.88,
+        review_queue_threshold: float = 0.65,
+    ):
         super().__init__()
+        if not (0.0 <= review_queue_threshold <= auto_link_threshold <= 1.0):
+            raise ValueError(
+                f"Invalid resolution thresholds: require 0.0 <= review_queue_threshold ({review_queue_threshold}) "
+                f"<= auto_link_threshold ({auto_link_threshold}) <= 1.0"
+            )
+        self.auto_link_threshold = auto_link_threshold
+        self.review_queue_threshold = review_queue_threshold
+        self._feedback_store: ResolutionFeedbackStore = feedback_store or ResolutionFeedbackStore()
         # Invert canonical alias map for exact lookup: normalized_alias -> (canonical, etype, context_desc)
         self._alias_to_canonical: Dict[str, Tuple[str, str, str]] = {}
         # Inverted romanized transliteration map
         self._translit_to_canonical: Dict[str, Tuple[str, str, str]] = {}
         # Cached 768-dim embeddings for canonical entity descriptions
         self._canonical_context_embeddings: Dict[str, List[float]] = {}
+        # Normalized military / official ranks associated with canonical persons
+        self._canonical_person_ranks: Dict[str, Set[str]] = {}
 
         for canonical, (etype, aliases, context_desc) in CANONICAL_DEFENSE_ENTITIES.items():
             norm_canonical = normalize_entity_name(canonical)
             self._alias_to_canonical[norm_canonical] = (canonical, etype, context_desc)
             self._translit_to_canonical[normalize_indic_romanization_variants(canonical)] = (canonical, etype, context_desc)
 
+            if etype == "PERSON":
+                from engine.ner import parse_structured_person_mention
+                person_ranks: Set[str] = set()
+                for al in aliases + [canonical]:
+                    p = parse_structured_person_mention(al)
+                    if p.get("extracted_rank"):
+                        nr = normalize_military_rank(p["extracted_rank"])
+                        if nr:
+                            person_ranks.add(nr)
+                if person_ranks:
+                    self._canonical_person_ranks[canonical] = person_ranks
+
             for alias in aliases:
                 norm_alias = normalize_entity_name(alias)
                 self._alias_to_canonical[norm_alias] = (canonical, etype, context_desc)
                 translit_alias = normalize_indic_romanization_variants(alias)
                 self._translit_to_canonical[translit_alias] = (canonical, etype, context_desc)
+
+    @property
+    def feedback_store(self) -> ResolutionFeedbackStore:
+        """Access the isolated feedback store."""
+        return self._feedback_store
+
+    def set_feedback_store(self, store: ResolutionFeedbackStore) -> None:
+        """Inject an isolated feedback store instance."""
+        if not isinstance(store, ResolutionFeedbackStore):
+            raise TypeError(f"Expected ResolutionFeedbackStore, got {type(store).__name__}")
+        self._feedback_store = store
+
+    def add_feedback_records(self, records: Union[FeedbackRecord, List[FeedbackRecord]]) -> None:
+        """Ingest feedback records into the agent's feedback store."""
+        if isinstance(records, FeedbackRecord):
+            self._feedback_store.add_record(records)
+        else:
+            self._feedback_store.add_records(records)
 
     def _get_canonical_embedding(self, canonical_name: str, context_desc: str) -> Optional[List[float]]:
         """Retrieve or lazily compute 768-dim context embedding for canonical entity."""
@@ -366,15 +629,41 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
         raw_name: str,
         entity_type_hint: Optional[str] = None,
         context: Optional[str] = None,
+        workspace_id: Optional[Union[int, str]] = None,
     ) -> Dict[str, Any]:
         """
         Resolve a single entity name into its canonical identity and action tier.
         Optionally uses surrounding textual context for dense semantic verification.
+        Enforces isolated human feedback rules (positive aliases & negative constraints).
         """
         trimmed = raw_name.strip()
         clean_name = PREFIX_PATTERN.sub("", trimmed).strip()
         norm_name = normalize_entity_name(trimmed)
         translit_name = normalize_indic_romanization_variants(trimmed)
+        norm_ws = normalize_workspace_id(workspace_id)
+
+        from engine.ner import parse_structured_person_mention
+        person_info = parse_structured_person_mention(raw_name)
+        extracted_rank = person_info.get("extracted_rank") if person_info else None
+
+        def _check_person_rank_conflict(can_name: str, etype_str: str) -> Optional[Dict[str, Any]]:
+            if etype_str == "PERSON" and extracted_rank and can_name in self._canonical_person_ranks:
+                known_ranks = self._canonical_person_ranks[can_name]
+                norm_r = normalize_military_rank(extracted_rank)
+                if norm_r and norm_r not in known_ranks:
+                    return {
+                        "raw_name": raw_name,
+                        "canonical_name": can_name,
+                        "entity_type": "PERSON",
+                        "confidence": 0.50,
+                        "action": "review_queue",
+                        "decision": "review_queue",
+                        "match_method": "conflicting_rank_guard",
+                        "explanation": f"Mention '{raw_name}' has military rank '{extracted_rank}' which conflicts with canonical ranks for '{can_name}'; routed to review_queue.",
+                        "workspace_id": norm_ws,
+                        "extracted_rank": extracted_rank,
+                    }
+            return None
 
         if not norm_name:
             return {
@@ -386,9 +675,11 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "decision": "separate",
                 "match_method": "empty_input",
                 "explanation": "Empty entity string",
+                "workspace_id": norm_ws,
+                "extracted_rank": extracted_rank,
             }
 
-        # Guard 1: Check for common English dictionary words
+        # Guard 1: Check for common English dictionary words (cannot be bypassed by feedback)
         tokens = norm_name.split()
         if len(tokens) == 1 and tokens[0] in COMMON_ENGLISH_WORDS:
             return {
@@ -400,9 +691,28 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "decision": "separate",
                 "match_method": "common_english_word_guard",
                 "explanation": f"Common English word '{tokens[0]}' protected from transliteration/alias merging.",
+                "workspace_id": norm_ws,
+                "extracted_rank": extracted_rank,
             }
 
-        # Guard 2: Check for ambiguous common single-token generic names
+        # Guard 2: Conservative Person Resolution (Mandatory Requirement 3)
+        # Person mentions with ranks but ambiguous names (e.g. 'General Singh') must remain in review_queue.
+        # Organizational or geographical context alone must not trigger automatic merging.
+        if person_info.get("extracted_rank") and person_info.get("is_ambiguous"):
+            return {
+                "raw_name": raw_name,
+                "canonical_name": person_info.get("normalized_name") or clean_name or trimmed,
+                "entity_type": "PERSON",
+                "confidence": 0.50,
+                "action": "review_queue",
+                "decision": "review_queue",
+                "match_method": "ambiguous_person_guard",
+                "explanation": f"Person mention '{raw_name}' with rank lacks full identity specificity ({person_info.get('evidence')}); held in review_queue.",
+                "workspace_id": norm_ws,
+                "extracted_rank": extracted_rank,
+            }
+
+        # Guard 3: Check for ambiguous common single-token generic names
         if len(tokens) == 1 and tokens[0] in COMMON_AMBIGUOUS_NAMES:
             return {
                 "raw_name": raw_name,
@@ -413,6 +723,116 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "decision": "separate",
                 "match_method": "ambiguous_common_name_guard",
                 "explanation": f"Single generic token '{tokens[0]}' held separate without corroborating full identity.",
+                "workspace_id": norm_ws,
+                "extracted_rank": extracted_rank,
+            }
+
+        # 0. Check positive feedback overlay (runtime accepted aliases)
+        pos_record, pos_reason = self._feedback_store.get_positive_alias(trimmed, workspace_id=norm_ws)
+        if pos_record:
+            can_name = pos_record.target_canonical
+            # Authoritative defense canonical registry validation
+            auth_entry = None
+            auth_can_name = None
+            for c_name, c_tuple in CANONICAL_DEFENSE_ENTITIES.items():
+                if normalize_entity_name(c_name) == normalize_entity_name(can_name):
+                    auth_entry = c_tuple
+                    auth_can_name = c_name
+                    break
+
+            if auth_entry is None or auth_entry[0] not in ("ORGANISATION", "LOCATION", "EQUIPMENT", "PERSON"):
+                # Target canonical not found in authoritative defense ontology -> fail closed
+                dec_id = str(pos_record.decision_id)
+                return {
+                    "raw_name": raw_name,
+                    "canonical_name": clean_name or trimmed,
+                    "entity_type": pos_record.entity_type or entity_type_hint or "UNKNOWN",
+                    "confidence": 0.40,
+                    "action": "separate",
+                    "decision": "separate",
+                    "match_method": "invalid_canonical_target_rejected",
+                    "explanation": f"Target canonical '{can_name}' not found in canonical defense registry; failed closed.",
+                    "feedback_decision_id": dec_id,
+                    "analyst_id": pos_record.analyst_id,
+                    "workspace_id": norm_ws,
+                    "claim_status": ClaimStatus.REPORTED.value,
+                }
+
+            auth_etype = auth_entry[0]
+            dec_id = str(pos_record.decision_id)
+            # Validate entity type compatibility if provided in feedback
+            if pos_record.entity_type and pos_record.entity_type.upper() != auth_etype.upper():
+                return {
+                    "raw_name": raw_name,
+                    "canonical_name": clean_name or trimmed,
+                    "entity_type": pos_record.entity_type,
+                    "confidence": 0.40,
+                    "action": "separate",
+                    "decision": "separate",
+                    "match_method": "entity_type_mismatch_rejected",
+                    "explanation": f"Entity type mismatch for target '{can_name}': expected {auth_etype}, got {pos_record.entity_type}; failed closed.",
+                    "feedback_decision_id": dec_id,
+                    "analyst_id": pos_record.analyst_id,
+                    "workspace_id": norm_ws,
+                    "claim_status": ClaimStatus.REPORTED.value,
+                    "extracted_rank": extracted_rank,
+                }
+
+            # Validate incoming entity_type_hint if provided
+            if entity_type_hint and entity_type_hint.upper() != auth_etype.upper():
+                return {
+                    "raw_name": raw_name,
+                    "canonical_name": clean_name or trimmed,
+                    "entity_type": entity_type_hint,
+                    "confidence": 0.40,
+                    "action": "separate",
+                    "decision": "separate",
+                    "match_method": "entity_type_mismatch_rejected",
+                    "explanation": f"Input entity type hint '{entity_type_hint}' conflicts with canonical target type '{auth_etype}'; failed closed.",
+                    "feedback_decision_id": dec_id,
+                    "analyst_id": pos_record.analyst_id,
+                    "workspace_id": norm_ws,
+                    "claim_status": ClaimStatus.REPORTED.value,
+                    "extracted_rank": extracted_rank,
+                }
+
+            is_rej, rej_rec, rej_reason = self._feedback_store.is_pair_rejected(trimmed, auth_can_name, workspace_id=norm_ws)
+            if is_rej:
+                dec_id = rej_rec.decision_id if rej_rec else "conflict"
+                return {
+                    "raw_name": raw_name,
+                    "canonical_name": clean_name or trimmed,
+                    "entity_type": auth_etype,
+                    "confidence": 0.40,
+                    "action": "separate",
+                    "decision": "separate",
+                    "match_method": "negative_feedback_constraint",
+                    "explanation": f"Pair ('{trimmed}', '{auth_can_name}') blocked by negative feedback constraint (decision {dec_id}).",
+                    "feedback_decision_id": dec_id,
+                    "analyst_id": rej_rec.analyst_id if rej_rec else None,
+                    "workspace_id": norm_ws,
+                    "claim_status": ClaimStatus.DISPUTED.value,
+                    "extracted_rank": extracted_rank,
+                }
+
+            rank_conflict = _check_person_rank_conflict(auth_can_name, auth_etype)
+            if rank_conflict:
+                return rank_conflict
+
+            return {
+                "raw_name": raw_name,
+                "canonical_name": auth_can_name,
+                "entity_type": auth_etype,
+                "confidence": 0.98,
+                "action": "auto_link",
+                "decision": "auto_link",
+                "match_method": "accepted_feedback_alias",
+                "explanation": f"Human-verified accepted alias -> '{auth_can_name}' (decision {pos_record.decision_id}).",
+                "feedback_decision_id": str(pos_record.decision_id),
+                "analyst_id": pos_record.analyst_id,
+                "workspace_id": norm_ws,
+                "claim_status": ClaimStatus.ANALYST_VERIFIED.value,
+                "extracted_rank": extracted_rank,
             }
 
         # Generate mention context embedding if context is provided
@@ -428,6 +848,31 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
         # 1. Exact alias / canonical match (Strong match tier)
         if norm_name in self._alias_to_canonical:
             canonical, etype, context_desc = self._alias_to_canonical[norm_name]
+
+            # Check negative feedback constraint
+            is_rej, rej_rec, rej_reason = self._feedback_store.is_pair_rejected(trimmed, canonical, workspace_id=norm_ws)
+            if is_rej:
+                dec_id = rej_rec.decision_id if rej_rec else "conflict"
+                return {
+                    "raw_name": raw_name,
+                    "canonical_name": clean_name or trimmed,
+                    "entity_type": etype,
+                    "confidence": 0.40,
+                    "action": "separate",
+                    "decision": "separate",
+                    "match_method": "negative_feedback_constraint",
+                    "explanation": f"Pair ('{trimmed}', '{canonical}') explicitly rejected by analyst verification (decision {dec_id}).",
+                    "feedback_decision_id": dec_id,
+                    "analyst_id": rej_rec.analyst_id if rej_rec else None,
+                    "workspace_id": norm_ws,
+                    "claim_status": ClaimStatus.DISPUTED.value,
+                    "extracted_rank": extracted_rank,
+                }
+
+            rank_conflict = _check_person_rank_conflict(canonical, etype)
+            if rank_conflict:
+                return rank_conflict
+
             score = 0.98
             explanation = f"Exact match with canonical defense entity '{canonical}'."
 
@@ -450,11 +895,38 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "decision": "auto_link",
                 "match_method": "exact_defense_alias",
                 "explanation": explanation,
+                "workspace_id": norm_ws,
+                "extracted_rank": extracted_rank,
             }
 
         # 2. Indic Romanization transliteration match
         if translit_name in self._translit_to_canonical:
             canonical, etype, context_desc = self._translit_to_canonical[translit_name]
+
+            # Check negative feedback constraint
+            is_rej, rej_rec, rej_reason = self._feedback_store.is_pair_rejected(trimmed, canonical, workspace_id=norm_ws)
+            if is_rej:
+                dec_id = rej_rec.decision_id if rej_rec else "conflict"
+                return {
+                    "raw_name": raw_name,
+                    "canonical_name": clean_name or trimmed,
+                    "entity_type": etype,
+                    "confidence": 0.40,
+                    "action": "separate",
+                    "decision": "separate",
+                    "match_method": "negative_feedback_constraint",
+                    "explanation": f"Pair ('{trimmed}', '{canonical}') explicitly rejected by analyst verification (decision {dec_id}).",
+                    "feedback_decision_id": dec_id,
+                    "analyst_id": rej_rec.analyst_id if rej_rec else None,
+                    "workspace_id": norm_ws,
+                    "claim_status": ClaimStatus.DISPUTED.value,
+                    "extracted_rank": extracted_rank,
+                }
+
+            rank_conflict = _check_person_rank_conflict(canonical, etype)
+            if rank_conflict:
+                return rank_conflict
+
             score = 0.92
             explanation = f"Transliteration variant match -> '{canonical}'."
 
@@ -477,6 +949,8 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
                 "decision": "auto_link",
                 "match_method": "indic_romanization_transliteration",
                 "explanation": explanation,
+                "workspace_id": norm_ws,
+                "extracted_rank": extracted_rank,
             }
 
         # 3. Fuzzy match against known aliases with contextual embedding support
@@ -485,15 +959,32 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
         best_desc = ""
         best_score = 0.0
         best_alias = ""
+        blocked_rejected_candidate: Optional[Tuple[str, float, Optional[FeedbackRecord]]] = None
 
         for alias, (canonical, etype, desc) in self._alias_to_canonical.items():
             if entity_type_hint and etype != entity_type_hint:
+                continue
+
+            # Guard against merging opposing cardinal directions (e.g. Northern vs Southern vs Western)
+            norm_tokens = set(norm_name.split())
+            alias_tokens = set(alias.split())
+            cardinal_dirs = {"northern", "southern", "eastern", "western", "central"}
+            norm_cards = norm_tokens & cardinal_dirs
+            alias_cards = alias_tokens & cardinal_dirs
+            if norm_cards and alias_cards and norm_cards != alias_cards:
                 continue
 
             score = compute_string_similarity(norm_name, alias)
             # Token inclusion bonus
             if len(norm_name) > 3 and norm_name in alias:
                 score = max(score, 0.85)
+
+            # Check negative feedback constraint
+            is_rej, rej_rec, rej_reason = self._feedback_store.is_pair_rejected(trimmed, canonical, workspace_id=norm_ws)
+            if is_rej:
+                if score >= self.review_queue_threshold and (blocked_rejected_candidate is None or score > blocked_rejected_candidate[1]):
+                    blocked_rejected_candidate = (canonical, score, rej_rec)
+                continue
 
             if score > best_score:
                 best_score = score
@@ -520,19 +1011,69 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
 
         adjusted_score = round(min(1.0, max(0.0, best_score + ctx_bonus)), 4)
 
+        # If fuzzy match failed to find a non-rejected canonical, but an analyst-rejected
+        # canonical was prevented from matching, report the negative constraint.
+        if adjusted_score < self.review_queue_threshold and blocked_rejected_candidate is not None:
+            blk_can, blk_score, blk_rec = blocked_rejected_candidate
+            dec_id = blk_rec.decision_id if blk_rec else "conflict"
+            return {
+                "raw_name": raw_name,
+                "canonical_name": clean_name or trimmed,
+                "entity_type": best_type,
+                "confidence": 0.40,
+                "action": "separate",
+                "decision": "separate",
+                "match_method": "negative_feedback_constraint",
+                "explanation": f"Pair ('{trimmed}', '{blk_can}') auto-link prevented by negative feedback constraint (decision {dec_id}).",
+                "feedback_decision_id": dec_id,
+                "analyst_id": blk_rec.analyst_id if blk_rec else None,
+                "workspace_id": norm_ws,
+                "claim_status": ClaimStatus.DISPUTED.value,
+                "extracted_rank": extracted_rank,
+            }
+
         # Conservative Decision Logic:
-        # Strong match: >= 0.88 -> auto_link
-        # Medium match: 0.65 to 0.87 -> review_queue
-        # Weak match: < 0.65 -> separate
-        if adjusted_score >= 0.88:
+        # Strong match: >= auto_link_threshold -> auto_link
+        # Medium match: review_queue_threshold to auto_link_threshold -> review_queue
+        # Weak match: < review_queue_threshold -> separate
+        if adjusted_score >= self.auto_link_threshold:
             action = "auto_link"
             method = "fuzzy_high_confidence"
             explanation = f"High similarity ({adjusted_score:.2f}) with alias '{best_alias}' -> '{best_canonical}'."
-        elif adjusted_score >= 0.65:
+
+            rank_conflict = _check_person_rank_conflict(best_canonical, best_type)
+            if rank_conflict:
+                return rank_conflict
+
+        elif adjusted_score >= self.review_queue_threshold:
             action = "review_queue"
             method = "fuzzy_medium_review"
             explanation = f"Moderate similarity ({adjusted_score:.2f}) with alias '{best_alias}'. Analyst review required."
         else:
+            # Check if this mention has an active negative constraint or conflict
+            has_nc, nc_rec, nc_reason, nc_target = self._feedback_store.get_negative_constraint_or_conflict(trimmed, workspace_id=norm_ws)
+            if has_nc:
+                dec_id = nc_rec.decision_id if nc_rec else "conflict"
+                method = "negative_feedback_constraint"
+                best_canonical = clean_name or trimmed
+                adjusted_score = 0.40
+                explanation = f"Pair ('{trimmed}', '{nc_target}') auto-link prevented by negative feedback constraint (decision {dec_id})."
+                return {
+                    "raw_name": raw_name,
+                    "canonical_name": best_canonical,
+                    "entity_type": best_type,
+                    "confidence": adjusted_score,
+                    "action": "separate",
+                    "decision": "separate",
+                    "match_method": method,
+                    "explanation": explanation,
+                    "feedback_decision_id": dec_id,
+                    "analyst_id": nc_rec.analyst_id if nc_rec else None,
+                    "workspace_id": norm_ws,
+                    "claim_status": ClaimStatus.DISPUTED.value,
+                    "extracted_rank": extracted_rank,
+                }
+
             action = "separate"
             method = "unmatched_separate"
             best_canonical = clean_name or trimmed
@@ -551,33 +1092,50 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
             "decision": action,
             "match_method": method,
             "explanation": explanation,
+            "workspace_id": norm_ws,
+            "extracted_rank": extracted_rank,
         }
 
     def run(
         self,
         input_data: Union[List[str], List[Dict[str, Any]], List[EntityOut]],
+        workspace_id: Optional[Union[int, str]] = None,
     ) -> Dict[str, Any]:
         """
         Execute entity resolution over a list of entity mentions or names.
+        Caller-supplied workspace_id is strictly enforced across all items;
+        individual input dictionary workspace_id overrides are completely ignored.
         """
         if not isinstance(input_data, list):
             raise TypeError(f"ResolutionAgent expects list input, got {type(input_data).__name__}")
 
+        norm_ws = normalize_workspace_id(workspace_id)
         resolved_list: List[Dict[str, Any]] = []
 
         for item in input_data:
             if isinstance(item, str):
-                res = self.resolve_entity(item)
+                res = self.resolve_entity(item, workspace_id=norm_ws)
             elif isinstance(item, EntityOut):
-                res = self.resolve_entity(item.entity_value, entity_type_hint=item.entity_type)
+                res = self.resolve_entity(item.entity_value, entity_type_hint=item.entity_type, workspace_id=norm_ws)
             elif isinstance(item, dict):
                 raw_name = item.get("entity_value") or item.get("raw_name") or item.get("name") or ""
                 etype = item.get("entity_type")
                 context = item.get("context") or item.get("sentence")
-                res = self.resolve_entity(str(raw_name), entity_type_hint=etype, context=context)
+                # Strictly use trusted caller-supplied workspace_id
+                res = self.resolve_entity(str(raw_name), entity_type_hint=etype, context=context, workspace_id=norm_ws)
             else:
                 logger.warning("Skipping unknown item type in entity resolution: %s", type(item))
                 continue
+
+            # Set individual item claim_status
+            if res.get("match_method") == "accepted_feedback_alias":
+                res["claim_status"] = ClaimStatus.ANALYST_VERIFIED.value
+            elif res.get("match_method") == "negative_feedback_constraint":
+                res["claim_status"] = ClaimStatus.DISPUTED.value
+            elif res.get("match_method") in ("exact_defense_alias", "indic_romanization_transliteration"):
+                res["claim_status"] = ClaimStatus.OFFICIAL_DESIGNATION.value
+            elif "claim_status" not in res:
+                res["claim_status"] = ClaimStatus.REPORTED.value
 
             resolved_list.append(res)
 
@@ -585,12 +1143,22 @@ class ResolutionAgent(BaseAgent[Union[List[str], List[Dict[str, Any]], List[Enti
         if resolved_list:
             avg_conf = round(sum(r["confidence"] for r in resolved_list) / len(resolved_list), 4)
 
+        # Batch-level claim status: conservative.
+        # Only mark ANALYST_VERIFIED if ALL items are positively analyst-verified (accepted aliases).
+        # Rejections dispute an association but do not establish a verified positive identity.
+        # NOTE: Provenance schema is currently batch-level; individual item claim_status is preserved in resolved_entities.
+        all_positively_verified = bool(resolved_list) and all(
+            r.get("match_method") == "accepted_feedback_alias"
+            for r in resolved_list
+        )
+        claim_st = ClaimStatus.ANALYST_VERIFIED if all_positively_verified else ClaimStatus.OFFICIAL_DESIGNATION
+
         prov = Provenance(
             source_ids=[],
             method="defense_ontology_transliteration_and_contextual_resolution",
             model_version=f"{self.name}:{self.version}",
             confidence=avg_conf,
-            claim_status=ClaimStatus.OFFICIAL_DESIGNATION,
+            claim_status=claim_st,
             source_type=SourceType.PUBLIC,
         )
 
