@@ -272,15 +272,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
         </div>
       </div>
 
-      {/* Footer Info */}
-      <div className="p-4 border-t border-border bg-canvas/50 text-[11px] text-text-muted flex flex-col gap-1">
+      {/* Footer Info & Statutory Safeguards */}
+      <div className="p-4 border-t border-border bg-canvas/50 text-[11px] text-text-muted flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
           <span className="font-semibold text-text-secondary">Security Ring Model</span>
-          <span className="text-[10px] text-accent-saffron font-bold">4 Rings</span>
+          <span className="text-[10px] text-accent-saffron font-bold">4 Rings · 96 Feeds</span>
         </div>
         <p className="text-[10px] leading-tight text-text-muted">
           All intelligence extracted strictly from public news & syndication feeds.
         </p>
+        <div className="pt-1.5 mt-1 border-t border-border/40 text-[9px] leading-tight text-text-muted/80">
+          <span className="font-semibold text-text-secondary">Compliance:</span> DPDP Act 2023 · Public data only · Indicators for analysts, not verified intelligence (Palantir-inspired).
+        </div>
       </div>
     </aside>
   );

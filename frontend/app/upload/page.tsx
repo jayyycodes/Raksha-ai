@@ -122,6 +122,9 @@ export default function UploadPage() {
               <span>✓ Private Workspace Tagging (<code className="text-accent-saffron">source_type=&apos;user_upload&apos;</code>)</span>
               <span>✓ Excluded from public threat scoring</span>
             </div>
+            <p className="text-[10px] text-text-muted mt-2 border-t border-border/50 pt-1.5 leading-relaxed">
+              <strong>Analyst Responsibility Notice (Proposal Risk #12 & DPDP Act 2023):</strong> Uploaded data remains private to this workspace. The analyst is strictly responsible for their data and ensuring organizational authorization. User uploads are never merged into public threat indices without explicit promotion.
+            </p>
           </div>
         </div>
         <div className="text-right text-[10px] font-mono text-text-muted shrink-0">
