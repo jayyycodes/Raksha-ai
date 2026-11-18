@@ -65,22 +65,30 @@ class ConnectorRegistry:
                 logger.error(f"Error fetching from connector '{name}': {exc}")
         return all_articles
 
-    def health_report(self) -> list[dict[str, Any]]:
-        """Run health checks across all registered connectors."""
+    def health_report(self, limit: Optional[int] = None, max_workers: int = 16, timeout: float = 3.5) -> list[dict[str, Any]]:
+        """Run health checks across registered connectors concurrently with safe timeout."""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        items = list(self._connectors.items())
+        if limit and limit > 0:
+            items = items[:limit]
+
         reports = []
-        for name, conn in self._connectors.items():
+
+        def _probe(item):
+            name, conn = item
             try:
                 health = conn.health_check()
-                reports.append({
+                return {
                     "name": name,
                     "source_type": conn.source_type,
                     "ring": conn.ring,
                     "country": conn.country,
                     "language": conn.language,
                     **health,
-                })
+                }
             except Exception as e:
-                reports.append({
+                return {
                     "name": name,
                     "source_type": conn.source_type,
                     "ring": conn.ring,
@@ -88,7 +96,21 @@ class ConnectorRegistry:
                     "language": conn.language,
                     "status": "failed",
                     "error": str(e),
-                })
+                }
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_name = {executor.submit(_probe, it): it[0] for it in items}
+            for future in as_completed(future_to_name):
+                try:
+                    res = future.result(timeout=timeout)
+                    reports.append(res)
+                except Exception as exc:
+                    name = future_to_name[future]
+                    reports.append({
+                        "name": name,
+                        "status": "timeout",
+                        "error": f"Health check timed out: {exc}",
+                    })
         return reports
 
     def populate_stage3_sources(self) -> int:
