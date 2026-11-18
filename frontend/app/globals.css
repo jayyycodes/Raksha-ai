@@ -11,6 +11,13 @@ body {
   color: var(--foreground);
   background: var(--background);
   font-family: var(--font-ibm-plex-sans), system-ui, sans-serif;
+  scrollbar-width: thin;
+  scrollbar-color: #DDD8CC #EFECE5;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #DDD8CC #EFECE5;
 }
 
 /* Custom scrollbars matching desktop workbench */
