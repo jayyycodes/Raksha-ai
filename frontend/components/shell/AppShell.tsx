@@ -8,9 +8,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen flex bg-canvas text-text-primary antialiased">
+    <div className="h-screen flex bg-canvas text-text-primary antialiased overflow-hidden">
       {/* Desktop Sidebar */}
-      <div className="hidden lg:block shrink-0 h-screen sticky top-0 z-30">
+      <div className="hidden lg:block shrink-0 h-full z-30">
         <Sidebar />
       </div>
 
@@ -25,7 +25,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
       {/* Mobile Drawer */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 ease-in-out lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 h-full transform transition-transform duration-200 ease-in-out lg:hidden ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -33,10 +33,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <TopBar onToggleSidebar={() => setMobileOpen((prev) => !prev)} />
-        <main className="flex-1 p-4 lg:p-6 max-w-7xl w-full mx-auto">
-          {children}
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+          <div className="max-w-7xl w-full mx-auto">
+            {children}
+          </div>
         </main>
       </div>
     </div>

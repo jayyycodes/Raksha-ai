@@ -75,7 +75,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onToggleSidebar }) => {
   };
 
   return (
-    <header className="h-14 bg-card border-b border-border px-4 lg:px-6 flex items-center justify-between gap-4 sticky top-0 z-30">
+    <header className="h-14 bg-card border-b border-border px-4 lg:px-6 flex items-center justify-between gap-4 shrink-0 z-30">
       <div className="flex items-center gap-3 shrink-0">
         <button
           type="button"

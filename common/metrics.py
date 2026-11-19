@@ -6,14 +6,41 @@ Stage: 3 (M10: Observability & Hardening)
 import time
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from prometheus_client import (
-    Counter,
-    Histogram,
-    Gauge,
-    generate_latest,
-    CONTENT_TYPE_LATEST,
-    REGISTRY,
-)
+
+try:
+    from prometheus_client import (
+        Counter,
+        Histogram,
+        Gauge,
+        generate_latest,
+        CONTENT_TYPE_LATEST,
+        REGISTRY,
+    )
+    _PROMETHEUS_AVAILABLE = True
+except ImportError:
+    _PROMETHEUS_AVAILABLE = False
+    CONTENT_TYPE_LATEST = "text/plain; version=0.0.4"
+    REGISTRY = None
+
+    class _NoOpMetric:
+        def __init__(self, *args, **kwargs):
+            pass
+        def labels(self, *args, **kwargs):
+            return self
+        def inc(self, *args, **kwargs):
+            pass
+        def dec(self, *args, **kwargs):
+            pass
+        def set(self, *args, **kwargs):
+            pass
+        def observe(self, *args, **kwargs):
+            pass
+
+    Counter = Histogram = Gauge = _NoOpMetric
+
+    def generate_latest(registry=None):
+        return b"# prometheus_client not installed\n"
+
 
 # ── HTTP & Platform Metrics ──────────────────────────────────────────────────
 HTTP_REQUESTS_TOTAL = Counter(
@@ -76,7 +103,6 @@ class PrometheusMetricsMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         start_time = time.time()
-        # Normalize endpoint path to avoid high-cardinality explosions
         path = request.url.path
         method = request.method
 
@@ -88,7 +114,6 @@ class PrometheusMetricsMiddleware(BaseHTTPMiddleware):
             raise
         finally:
             duration = time.time() - start_time
-            # Keep path coarse (e.g. /api/articles/123 -> /api/articles/{id})
             normalized_path = _normalize_path(path)
             HTTP_REQUESTS_TOTAL.labels(method=method, endpoint=normalized_path, status=status_code).inc()
             HTTP_REQUEST_DURATION_SECONDS.labels(method=method, endpoint=normalized_path).observe(duration)

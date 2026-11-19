@@ -180,7 +180,9 @@ def get_latest_sitrep(db=Depends(get_db)):
 
 @router.get("/{report_date}")
 def get_sitrep_by_date(report_date: str, db=Depends(get_db)):
-    """Historical SitRep lookup by ISO date (YYYY-MM-DD)."""
+    """Historical SitRep lookup by ISO date (YYYY-MM-DD), or 'today'/'latest'."""
+    if report_date in ("today", "latest"):
+        return get_latest_sitrep(db)
     row = db.execute(
         text("SELECT * FROM sitreps WHERE report_date = :date"),
         {"date": report_date},

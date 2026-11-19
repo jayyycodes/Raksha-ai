@@ -31,37 +31,38 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
   return (
     <aside
       className={cn(
-        'w-64 bg-card border-r border-border flex flex-col justify-between h-full select-none',
+        'w-64 bg-card border-r border-border flex flex-col h-full select-none overflow-hidden',
         className
       )}
     >
-      <div>
-        {/* Brand Header */}
-        <div className="p-5 border-b border-border flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded bg-primary-navy text-accent-saffron flex items-center justify-center font-serif font-black text-lg tracking-tighter">
-              R
-            </div>
-            <div>
-              <span className="font-serif font-bold text-lg text-text-primary tracking-tight">
-                RAKSHA AI
-              </span>
-              <span className="text-[10px] uppercase font-bold text-accent-saffron ml-1.5 px-1.5 py-0.5 rounded bg-accent-saffron-light border border-accent-saffron/20">
-                STAGE 3
-              </span>
-            </div>
+      {/* Brand Header: Always fixed at top, never scrolls */}
+      <div className="p-4 border-b border-border flex flex-col gap-1 shrink-0 bg-card">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded bg-primary-navy text-accent-saffron flex items-center justify-center font-serif font-black text-lg tracking-tighter shadow-sm">
+            R
           </div>
-          <p className="text-[11px] text-text-muted mt-1 leading-tight">
-            OSINT Intelligence Analyst Workbench
-          </p>
+          <div>
+            <span className="font-serif font-bold text-lg text-text-primary tracking-tight">
+              RAKSHA AI
+            </span>
+            <span className="text-[10px] uppercase font-bold text-accent-saffron ml-1.5 px-1.5 py-0.5 rounded bg-accent-saffron-light border border-accent-saffron/20">
+              STAGE 3
+            </span>
+          </div>
         </div>
+        <p className="text-[11px] text-text-muted mt-1 leading-tight">
+          OSINT Intelligence Analyst Workbench
+        </p>
+      </div>
 
-        {/* Primary Navigation */}
-        <div className="px-3 py-4">
-          <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+      {/* Primary Navigation: Independently scrollable container */}
+      <div className="flex-1 overflow-y-auto min-h-0 px-3 py-3 space-y-4">
+        {/* Section 1: Feeds */}
+        <div>
+          <div className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">
             Intelligence Feeds
           </div>
-          <nav className="space-y-1">
+          <nav className="space-y-0.5">
             <Link
               href="/articles"
               onClick={onNavigate}
@@ -72,7 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
                   : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
               )}
             >
-              <span className="text-base">📰</span>
+              <span className="text-base leading-none">📰</span>
               <span>Article Feed</span>
             </Link>
 
@@ -86,16 +87,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
                   : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
               )}
             >
-              <span className="text-base">📡</span>
+              <span className="text-base leading-none">📡</span>
               <span>Source Status</span>
             </Link>
           </nav>
+        </div>
 
-          {/* Stage 2 Intelligence Modules */}
-          <div className="mt-6 px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+        {/* Section 2: Stage 2 Intelligence Modules */}
+        <div>
+          <div className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">
             Intelligence Analysis
           </div>
-          <nav className="space-y-1">
+          <nav className="space-y-0.5">
             <Link
               href="/map"
               onClick={onNavigate}
@@ -106,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
                   : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
               )}
             >
-              <span className="text-base">🗺️</span>
+              <span className="text-base leading-none">🗺️</span>
               <span>Incident Map</span>
             </Link>
 
@@ -120,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
                   : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
               )}
             >
-              <span className="text-base">🕸️</span>
+              <span className="text-base leading-none">🕸️</span>
               <span>Entity Graph</span>
             </Link>
 
@@ -134,7 +137,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
                   : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
               )}
             >
-              <span className="text-base">👤</span>
+              <span className="text-base leading-none">👤</span>
               <span>Entity Profiles</span>
             </Link>
 
@@ -148,7 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
                   : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
               )}
             >
-              <span className="text-base">⏳</span>
+              <span className="text-base leading-none">⏳</span>
               <span>Event Timelines</span>
             </Link>
 
@@ -162,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
                   : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
               )}
             >
-              <span className="text-base">📈</span>
+              <span className="text-base leading-none">📈</span>
               <span>Threats & Scores</span>
             </Link>
 
@@ -176,7 +179,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
                   : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
               )}
             >
-              <span className="text-base">🚨</span>
+              <span className="text-base leading-none">🚨</span>
               <span>Security Alerts</span>
             </Link>
 
@@ -190,7 +193,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
                   : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
               )}
             >
-              <span className="text-base">🔔</span>
+              <span className="text-base leading-none">🔔</span>
               <span>Watchlists</span>
             </Link>
 
@@ -204,7 +207,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
                   : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
               )}
             >
-              <span className="text-base">⚖️</span>
+              <span className="text-base leading-none">⚖️</span>
               <span>Review Queue</span>
             </Link>
 
@@ -218,7 +221,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
                   : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
               )}
             >
-              <span className="text-base">📑</span>
+              <span className="text-base leading-none">📑</span>
               <span>Situation Report</span>
             </Link>
 
@@ -232,7 +235,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
                   : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
               )}
             >
-              <span className="text-base">💼</span>
+              <span className="text-base leading-none">💼</span>
               <span>Cases & Dossiers</span>
             </Link>
 
@@ -246,39 +249,44 @@ export const Sidebar: React.FC<SidebarProps> = ({ className, onNavigate }) => {
                   : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
               )}
             >
-              <span className="text-base">📥</span>
+              <span className="text-base leading-none">📥</span>
               <span>Upload Custom Data</span>
             </Link>
+          </nav>
+        </div>
 
-            <div className="pt-3 mt-3 border-t border-border/60">
-              <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-text-muted">
-                Governance & Security
-              </div>
-              <Link
-                href="/audit"
-                onClick={onNavigate}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-navy',
-                  isAuditActive
-                    ? 'bg-subtle-fill text-primary-navy font-bold border-l-2 border-primary-navy'
-                    : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
-                )}
-              >
-                <span className="text-base">🛡️</span>
-                <span>Audit & Lineage</span>
-              </Link>
-            </div>
+        {/* Section 3: Governance & Security */}
+        <div className="pt-2 border-t border-border/60">
+          <div className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+            Governance & Security
+          </div>
+          <nav className="space-y-0.5">
+            <Link
+              href="/audit"
+              onClick={onNavigate}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-navy',
+                isAuditActive
+                  ? 'bg-subtle-fill text-primary-navy font-bold border-l-2 border-primary-navy'
+                  : 'text-text-secondary hover:bg-subtle-fill/60 hover:text-text-primary'
+              )}
+            >
+              <span className="text-base leading-none">🛡️</span>
+              <span>Audit & Lineage</span>
+            </Link>
           </nav>
         </div>
       </div>
 
-      {/* Footer Info */}
-      <div className="p-4 border-t border-border bg-canvas/50 text-[11px] text-text-muted flex flex-col gap-1">
+      {/* Footer Info: Fixed at bottom, never scrolls or clips */}
+      <div className="p-3.5 border-t border-border bg-canvas/60 text-[11px] text-text-muted flex flex-col gap-1 shrink-0">
         <div className="flex items-center justify-between">
-          <span className="font-semibold text-text-secondary">Security Ring Model</span>
-          <span className="text-[10px] text-accent-saffron font-bold">4 Rings</span>
+          <span className="font-semibold text-text-secondary text-xs">Security Ring Model</span>
+          <span className="text-[10px] text-accent-saffron font-bold px-1.5 py-0.5 rounded bg-accent-saffron-light border border-accent-saffron/30">
+            4 Rings
+          </span>
         </div>
-        <p className="text-[10px] leading-tight text-text-muted">
+        <p className="text-[10px] leading-tight text-text-muted mt-0.5">
           All intelligence extracted strictly from public news & syndication feeds.
         </p>
       </div>

@@ -89,11 +89,17 @@ class RSSConnector(BaseConnector):
     def health_check(self) -> dict[str, Any]:
         start = time.perf_counter()
         try:
-            feed = feedparser.parse(self.rss_url)
-            latency = (time.perf_counter() - start) * 1000
-            if feed.entries or len(getattr(feed, "feed", {})) > 0:
-                return {"status": "ok", "latency_ms": round(latency, 2), "error": None}
-            return {"status": "stale", "latency_ms": round(latency, 2), "error": "Empty feed entries"}
+            import urllib.request
+            req = urllib.request.Request(
+                self.rss_url,
+                headers={"User-Agent": "RakshaAI-OSINT/3.0 (Windows NT 10.0; Win64; x64)"},
+            )
+            with urllib.request.urlopen(req, timeout=2.0) as resp:
+                code = resp.getcode()
+                latency = (time.perf_counter() - start) * 1000
+                if 200 <= code < 400:
+                    return {"status": "ok", "latency_ms": round(latency, 2), "error": None}
+                return {"status": "stale", "latency_ms": round(latency, 2), "error": f"HTTP {code}"}
         except Exception as e:
             latency = (time.perf_counter() - start) * 1000
             return {"status": "failed", "latency_ms": round(latency, 2), "error": str(e)}

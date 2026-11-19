@@ -13,6 +13,8 @@ from sqlalchemy import text
 from common.config import settings
 from common.db import get_db as _get_db
 
+import bcrypt
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
@@ -24,12 +26,22 @@ def get_db():
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify raw password against bcrypt hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8")[:72],
+            hashed_password.encode("utf-8"),
+        )
+    except Exception:
+        return pwd_context.verify(plain_password, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
     """Hash raw password with bcrypt."""
-    return pwd_context.hash(password)
+    try:
+        salt = bcrypt.gensalt()
+        return bcrypt.hashpw(password.encode("utf-8")[:72], salt).decode("utf-8")
+    except Exception:
+        return pwd_context.hash(password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

@@ -3,6 +3,7 @@ GET /api/sources        — all sources with last scraped time
 GET /api/sources/health — per-source freshness and health status
 Owner: Jay | Stage: 1 MVP
 """
+from typing import Optional
 from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy import text
 
@@ -110,15 +111,16 @@ def list_connectors():
 
 
 @router.get("/connectors/health")
-def connectors_health_report():
+def connectors_health_report(limit: Optional[int] = None):
     """
-    Health checks across all 96+ active connectors.
+    Health checks across active connectors (executed concurrently).
+    Optional query param `limit` (e.g. ?limit=10) to probe a subset for rapid UI checks.
     """
     from connectors.registry import registry
     registry.populate_stage3_sources()
     return {
         "total": registry.total_count(),
-        "report": registry.health_report(),
+        "report": registry.health_report(limit=limit),
     }
 
 

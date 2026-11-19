@@ -43,7 +43,7 @@ class GDELTConnector(BaseConnector):
     def health_check(self) -> dict[str, Any]:
         start = time.perf_counter()
         try:
-            sample = fetch_gdelt_articles(query="India", max_records=1)
+            sample = fetch_gdelt_articles(query="India", max_records=1, timeout_seconds=2.0)
             latency = (time.perf_counter() - start) * 1000
             if sample:
                 return {"status": "ok", "latency_ms": round(latency, 2), "error": None}
